@@ -12,7 +12,6 @@ app "http"
         pf.Url.{ Url },
         html.Html,
         html.Attribute,
-        # pf.Env,
         "styles.css" as styles : List U8,
         App,
     ]
@@ -78,16 +77,6 @@ logRequest = \req ->
     dateTime <- Utc.now |> Task.map Utc.toIso8601Str |> Task.await
 
     Stdout.line "\(dateTime) \(Http.methodToStr req.method) \(req.url)"
-
-# readUrlEnv : Str -> Task Str [EnvVarNotFound Str]_
-# readUrlEnv = \target ->
-#     Env.var target
-#     |> Task.mapErr \_ -> EnvVarNotFound target
-
-# fetchContent : Str -> Task Str [HttpError Str]_
-# fetchContent = \url ->
-#     Http.getUtf8 url
-#     |> Task.mapErr \err -> HttpError (Http.errorToString err)
 
 # Respond with the given status code and body
 respondHtml : Str, U16 -> Task Response *
