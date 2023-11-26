@@ -7,16 +7,13 @@ app "AoC"
         pf.Stdout,
         pf.Task.{ Task },
         colors.Color,
-        AoC,
         App,
     ]
     provides [main] to pf
 
-
-
 main : Task {} *
 main =
-    when App.solutions |> solvePuzzle { year: 2022, day: 1, puzzle: Part1 } is
+    when App.solvePuzzle { year: 2022, day: 1, puzzle: Part1 } is
         Ok answer ->
             header = Color.fg "Advent of Code Solution" Green
             year = Color.fg "\(Num.toStr 2022)" Green
@@ -37,40 +34,26 @@ main =
             ---
             """
             |> Stdout.line
-        
-        Err NotImplemented -> 
 
-            [ 
-                Color.fg "Advent of Code" Green, ":",
-                Color.fg "\(Num.toStr 2022)-\(Num.toStr 1)-Part 1" Blue, ":",
+        Err NotImplemented ->
+            [
+                Color.fg "Advent of Code" Green,
+                ":",
+                Color.fg "\(Num.toStr 2022)-\(Num.toStr 1)-Part 1" Blue,
+                ":",
                 Color.fg "NOT IMPLEMENTED" Red,
             ]
-            |> Str.joinWith "" 
+            |> Str.joinWith ""
             |> Stdout.line
 
-        Err (Error msg) -> 
-            [ 
-                Color.fg "Advent of Code" Green, ":",
-                Color.fg "\(Num.toStr 2022)-\(Num.toStr 1)-Part 1" Blue, ":",
+        Err (Error msg) ->
+            [
+                Color.fg "Advent of Code" Green,
+                ":",
+                Color.fg "\(Num.toStr 2022)-\(Num.toStr 1)-Part 1" Blue,
+                ":",
                 Color.fg "ERROR \(msg)" Red,
             ]
-            |> Str.joinWith "" 
+            |> Str.joinWith ""
             |> Stdout.line
 
-solvePuzzle : List AoC.Solution, { year : U64, day : U64, puzzle : [Part1, Part2] } -> Result Str [NotImplemented, Error Str]
-solvePuzzle = \sols, selection ->
-
-    result = sols |> List.keepOks (filterSolutions selection.year selection.day) |> List.first
-
-    when (selection.puzzle, result) is
-        (Part1, Ok solution) -> solution.part1 {}
-        (Part2, Ok solution) -> solution.part2 {}
-        (_, Err ListWasEmpty) -> Err (Error "Selected puzzle not available")
-
-filterSolutions : U64, U64 -> (AoC.Solution -> Result AoC.Solution [DoesNotMatch])
-filterSolutions = \year, day ->
-    \sol ->
-        if sol.year == year && sol.day == day then
-            Ok sol
-        else
-            Err DoesNotMatch
