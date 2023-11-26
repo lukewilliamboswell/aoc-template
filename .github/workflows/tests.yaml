@@ -32,4 +32,4 @@ jobs:
       - run: ./roc_nightly/roc version
 
       # Run all tests 
-      - run: ./test.sh
+      - run: ./ci/all_tests.sh
