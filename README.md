@@ -1,2 +1,3 @@
-# roc-AoC-template
-A template for AoC puzzles using Roc-lang
+# Advent of Code Template
+
+A template for solving AoC puzzles using [Roc](https://www.roc-lang.org)
