@@ -8,18 +8,15 @@ app "AoC"
         pf.Task.{ Task },
         colors.Color,
         AoC,
-        S2022D01,
+        App,
     ]
     provides [main] to pf
 
-solutions : List AoC.Solution
-solutions = [
-    S2022D01.solution,
-]
+
 
 main : Task {} *
 main =
-    when solutions |> solvePuzzle { year: 2022, day: 1, puzzle: Part1 } is
+    when App.solutions |> solvePuzzle { year: 2022, day: 1, puzzle: Part1 } is
         Ok answer ->
             header = Color.fg "Advent of Code Solution" Green
             year = Color.fg "\(Num.toStr 2022)" Green
