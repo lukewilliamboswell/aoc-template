@@ -53,7 +53,7 @@ main = runTask |> Task.onErr \_ -> Stdout.line "ERROR Something went wrong"
 runTask : Task {} []
 runTask =
 
-    # Enable TTY Raw mode
+    # Enable Raw Mode
     {} <- Tty.enableRawMode |> Task.await
 
     # Run App Loop
@@ -113,23 +113,23 @@ runTask =
 runLoop : Model -> Task [Step Model, Done Model] []
 runLoop = \prevState ->
 
-    # Get the time for this draw
+    # Get the time of this draw
     now <- Utc.now |> Task.await
 
-    # Update screen size (in case it was resized since last draw)
+    # Update screen size (in case it was resized since the last draw)
     terminalSize <- getTerminalSize |> Task.await
 
-    # Update State for this draw
+    # Update the State with screen size and time of this draw
     state = { prevState & screen: terminalSize, prevDraw: prevState.currDraw, currDraw: now }
 
     # Draw the screen
     drawFns = render state
-    {} <- drawScreen state drawFns |> Task.await
+    {} <- drawScreen state drawFns |> Stdout.write |> Task.await
 
     # Get user input
     input <- Stdin.bytes |> Task.map ANSI.parseRawStdin |> Task.await
 
-    # Parse input into command
+    # Parse user input into a command
     command =
         when input is
             KeyPress Up -> MoveCursor Up
@@ -141,10 +141,10 @@ runLoop = \prevState ->
             Unsupported bytes -> Crash bytes
             KeyPress _ -> Nothing
 
-    # Update state too keep a history of inputs
+    # Update state so we can keep a history of user input
     stateWithInput = { state & inputs: List.append state.inputs input }
 
-    # Handle input
+    # Action command
     when command is
         Nothing -> Task.ok (Step stateWithInput)
         MoveCursor direction -> Task.ok (Step (updateCursor stateWithInput direction))
@@ -155,7 +155,7 @@ DrawFn : Position, Position -> Result Pixel {}
 Pixel : { char : Str, fg : Color, bg : Color }
 
 # Loop through each pixel in screen and build up a single string to write to stdout
-drawScreen : {cursor: Position, screen : ScreenSize}*, List DrawFn -> Task {} []
+drawScreen : {cursor: Position, screen : ScreenSize}*, List DrawFn -> Str
 drawScreen = \{cursor, screen}, drawFns ->
     pixels =
         row <- List.range { start: At 0, end: Before screen.height } |> List.map
@@ -171,7 +171,6 @@ drawScreen = \{cursor, screen}, drawFns ->
 
     pixels
     |> joinAllPixels
-    |> Stdout.write
 
 joinAllPixels : List (List Pixel) -> Str
 joinAllPixels = \rows ->
@@ -268,7 +267,7 @@ drawText = \text, { r, c, fg ? Default, bg ? Default } -> \_, pixel ->
         else
             Err {}
 
-updateCursor : Model, [Up, Down, Left, Right] -> Model
+updateCursor : { cursor : Position, screen : ScreenSize}a, [Up, Down, Left, Right] -> { cursor : Position, screen : ScreenSize}a
 updateCursor = \state, direction ->
     when direction is
         Up ->
