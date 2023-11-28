@@ -4,12 +4,16 @@ interface ANSI
 
 ## [ANSI Escape Codes](https://en.wikipedia.org/wiki/ANSI_escape_code)
 Code : [
+    Reset,
     ClearScreen,
     GetCursor,
     SetCursor { row : I32, col : I32 },
     SetFgColor Color,
     SetBgColor Color,
+    MoveCursorHome,
     MoveCursor [Up, Down, Left, Right] I32,
+    MoveCursorNextLine,
+    MoveCursorPrevLine,
 ]
 
 ## 8-bit colors supported on *most* modern terminal emulators
@@ -40,11 +44,15 @@ esc = "\u(001b)"
 toStr : Code -> Str
 toStr = \code ->
     when code is
-        ClearScreen -> "\(esc)c"
+        Reset -> "\(esc)c"
+        ClearScreen -> "\(esc)[3J"
         GetCursor -> "\(esc)[6n"
         SetCursor { row, col } -> "\(esc)[\(Num.toStr row);\(Num.toStr col)H"
         SetFgColor color -> fromFgColor color
         SetBgColor color -> fromBgColor color
+        MoveCursorHome -> "\(esc)[H"
+        MoveCursorNextLine -> "\(esc)[1E"
+        MoveCursorPrevLine -> "\(esc)[1F"
         MoveCursor direction steps ->
             when direction is
                 Up -> "\(esc)[\(Num.toStr steps)A"

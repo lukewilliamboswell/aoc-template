@@ -9,40 +9,70 @@ app "AoC"
         pf.Tty,
         pf.Task.{ Task },
         ANSI.{ Color },
-
+        pf.Utc.{ Utc },
         # App,
     ]
     provides [main] to pf
 
-State : {
-    screen : { width : I32, height : I32 },
-    cursor : { row : I32, col : I32 },
+ScreenSize : { width : I32, height : I32 }
+Position : { row : I32, col : I32 }
+
+Model : {
+    screen : ScreenSize,
+    cursor : Position,
+    puzzles : List Str,
+    prevDraw : Utc,
+    currDraw : Utc,
 }
 
-init : State
+init : Model
 init = {
-    cursor: { row: 2, col: 2 },
+    cursor: { row: 3, col: 3 },
     screen: { width: 0, height: 0 },
+    puzzles: [
+        "2022 Day 1: Calorie Counting Part 1",
+        "2022 Day 1: Calorie Counting Part 2",
+        "2022 Day 2: Rock Paper Scissors Part 1",
+        "2022 Day 2: Rock Paper Scissors Part 2",
+        "2022 Day 3: Rucksack Reorganization Part 1",
+        "2022 Day 3: Rucksack Reorganization Part 2",
+    ],
+    prevDraw: Utc.fromMillisSinceEpoch 0,
+    currDraw: Utc.fromMillisSinceEpoch 0,
 }
 
-render : State -> List DrawFn
+render : Model -> List DrawFn
 render = \state ->
     cursorStr = "CURSOR \(Num.toStr state.cursor.row), \(Num.toStr state.cursor.col)"
     screenStr = "SCREEN \(Num.toStr state.screen.height), \(Num.toStr state.screen.width) TOTAL PIXELS \(Num.toStr (state.screen.height * state.screen.width))"
+    inputDelatStr = "INPUT DELTA \(Num.toStr (Utc.deltaAsMillis state.prevDraw state.currDraw))ms"
     [
+        drawText " Advent of Code Puzzles" { r: 1, c: 1, fg: Green },
         drawCursor { bg: Green },
-        drawText cursorStr { r: state.screen.height - 2, c: 2, fg: Magenta },
-        drawText screenStr { r: state.screen.height - 1, c: 2, fg: Cyan },
-        drawBox { r: 1, c: 1, w: state.screen.width, h: state.screen.height }, # border
-        drawVLine { r: 2, c: state.screen.width // 2, len: state.screen.height, fg: Blue },
-        drawHLine { r: state.screen.height // 2, c: 2, len: state.screen.width, fg: Blue },
+        drawText inputDelatStr { r: state.screen.height - 4, c: 1, fg: Magenta },
+        drawText cursorStr { r: state.screen.height - 3, c: 1, fg: Magenta },
+        drawText screenStr { r: state.screen.height - 2, c: 1, fg: Magenta },
+        drawBox { r: 0, c: 0, w: state.screen.width, h: state.screen.height }, # border
+        drawVLine { r: 1, c: state.screen.width // 2, len: state.screen.height, fg: Blue },
+        drawHLine { c: 1, r: state.screen.height // 2, len: state.screen.width, fg: Blue },
     ]
+    |> List.concat
+        (
+            List.mapWithIndex state.puzzles \puzzleStr, idx ->
+                row = 3 + (Num.toI32 idx)
+                if (state.cursor.row == row) then
+                    # Selected puzzle
+                    drawText " - \(puzzleStr)" { r: row, c: 2, fg: Green }
+                else
+                    drawText " - \(puzzleStr)" { r: row, c: 2, fg: Gray }
+        )
 
 main : Task {} *
 main = runTask |> Task.onErr \_ -> Stdout.line "ERROR Something went wrong"
 
 runTask : Task {} []
 runTask =
+
     # Enable TTY Raw mode
     {} <- Tty.enableRawMode |> Task.await
 
@@ -52,8 +82,8 @@ runTask =
     # Restore TTY Mode
     {} <- Tty.disableRawMode |> Task.await
 
+    # Exit
     Task.ok {}
-
 
 # TODO ADD PUZZLE STUFF BACK IN
 # when App.solvePuzzle { year: 2022, day: 1, puzzle: Part1 } is
@@ -100,23 +130,24 @@ runTask =
 #         |> Str.joinWith ""
 #         |> Stdout.line
 
-runLoop : State -> Task [Step State, Done State] []
-runLoop = \state ->
+runLoop : Model -> Task [Step Model, Done Model] []
+runLoop = \prevState ->
+
+    # Get the time for this draw
+    now <- Utc.now |> Task.await
 
     # Update screen size (in case it was resized since last draw)
     terminalSize <- getTerminalSize |> Task.await
 
-    stateWithScreenUpdated = { state & screen: terminalSize }
-    drawFns = render stateWithScreenUpdated
+    # Update State for this draw
+    state = { prevState & screen: terminalSize, prevDraw: prevState.currDraw, currDraw: now }
 
     # Sleep to limit frame rate
-    {} <- Sleep.millis 10 |> Task.await
-
-    # Clear the screen
-    {} <- Stdout.write (ANSI.toStr ClearScreen) |> Task.await
+    {} <- Sleep.millis 5 |> Task.await
 
     # Draw the screen
-    {} <- drawScreen stateWithScreenUpdated drawFns |> Task.await
+    drawFns = render state
+    {} <- drawScreen state drawFns |> Task.await
 
     # Get user input
     bytes <- Stdin.bytes |> Task.await
@@ -128,6 +159,7 @@ runLoop = \state ->
             Key Left -> MoveCursor Left
             Key Right -> MoveCursor Right
             Key Escape -> Exit
+            Key Enter -> Nothing
             Ctrl LetterC -> Exit
             _ -> UnsupportedInput
 
@@ -135,33 +167,32 @@ runLoop = \state ->
     when command is
         MoveCursor direction ->
             # Move the cursor and step the game loop
-            Task.ok (Step (updateCursor stateWithScreenUpdated direction))
+            Task.ok (Step (updateCursor state direction))
 
         Exit ->
             # Exit the game loop
-            Task.ok (Done stateWithScreenUpdated)
+            Task.ok (Done state)
 
         UnsupportedInput ->
             # Clear the screen
             {} <- Stdout.write (ANSI.toStr ClearScreen) |> Task.await
 
-            # dbg
-            #     "UNSUPPORTED INPUT DETECTED"
+            dbg
+                T "UNSUPPORTED INPUT DETECTED" bytes
 
-            # dbg
-            #     bytes
+            Task.ok (Done state)
 
-            Task.ok (Done stateWithScreenUpdated)
+        Nothing -> Task.ok (Step state)
 
-DrawFn : State, { row : I32, col : I32 } -> Result Pixel {}
+DrawFn : Model, Position -> Result Pixel {}
 Pixel : { char : Str, fg : Color, bg : Color }
 
 # Loop through each pixel in screen and build up a single string to write to stdout
-drawScreen : State, List DrawFn -> Task {} []
+drawScreen : Model, List DrawFn -> Task {} []
 drawScreen = \state, drawFns ->
     pixels =
-        row <- List.range { start: At 1, end: At state.screen.height } |> List.map
-        col <- List.range { start: At 1, end: At state.screen.width } |> List.map
+        row <- List.range { start: At 0, end: Before state.screen.height } |> List.map
+        col <- List.range { start: At 0, end: Before state.screen.width } |> List.map
 
         List.walkUntil
             drawFns
@@ -187,7 +218,7 @@ joinAllPixels = \rows ->
         }
         joinPixelRow
     |> .lines
-    |> Str.joinWith "\n"
+    |> Str.joinWith ""
 
 joinPixelRow : { char : Str, fg : Color, bg : Color, lines : List Str }, List Pixel, Nat -> { char : Str, fg : Color, bg : Color, lines : List Str }
 joinPixelRow = \{ char, fg, bg, lines }, pixelRow, row ->
@@ -200,18 +231,18 @@ joinPixelRow = \{ char, fg, bg, lines }, pixelRow, row ->
 
     line =
         rowStrs
-        |> Str.joinWith ""
-        |> Str.withPrefix (ANSI.toStr (SetCursor { row: Num.toI32 (row + 1), col: 1 })) # Set cursor at the start of line
+        |> Str.joinWith "" # Set cursor at the start of line we want to draw
+        |> Str.withPrefix (ANSI.toStr (SetCursor { row: Num.toI32 (row + 1), col: 0 }))
 
     { char: " ", fg: prev.fg, bg: prev.bg, lines: List.append lines line }
 
 joinPixels : { rowStrs : List Str, prev : Pixel }, Pixel -> { rowStrs : List Str, prev : Pixel }
 joinPixels = \{ rowStrs, prev }, curr ->
     pixelStr =
-        # If there is a change in colors between pixels then append an ASCII escape
+        # Prepend an ASCII escape ONLY if there is a change between pixels
         curr.char
-        |> \str -> if curr.fg != prev.fg then "\(ANSI.toStr (SetFgColor curr.fg))\(str)" else str
-        |> \str -> if curr.bg != prev.bg then "\(ANSI.toStr (SetBgColor curr.bg))\(str)" else str
+        |> \str -> if curr.fg != prev.fg then Str.concat (ANSI.toStr (SetFgColor curr.fg)) str else str
+        |> \str -> if curr.bg != prev.bg then Str.concat (ANSI.toStr (SetBgColor curr.bg)) str else str
 
     { rowStrs: List.append rowStrs pixelStr, prev: curr }
 
@@ -224,17 +255,13 @@ drawBox = \{ r, c, w, h, fg ? Gray, bg ? Default, char ? "#" } -> \_, { row, col
         endCol = (c + w)
 
         if row == r && (col >= startCol && col < endCol) then
-            # TOP BORDER
-            Ok { char, fg, bg }
+            Ok { char, fg, bg } # TOP BORDER
         else if row == (r + h - 1) && (col >= startCol && col < endCol) then
-            # BOTTOM BORDER
-            Ok { char, fg, bg }
+            Ok { char, fg, bg } # BOTTOM BORDER
         else if col == c && (row >= startRow && row < endRow) then
-            # LEFT BORDER
-            Ok { char, fg, bg }
+            Ok { char, fg, bg } # LEFT BORDER
         else if col == (c + w - 1) && (row >= startRow && row < endRow) then
-            # RIGHT BORDER
-            Ok { char, fg, bg }
+            Ok { char, fg, bg } # RIGHT BORDER
         else
             Err {}
 
@@ -261,7 +288,6 @@ drawCursor = \{ fg ? Default, bg ? Gray, char ? " " } -> \state, { row, col } ->
         else
             Err {}
 
-# NOTE ASSUME ASCII CHARACTERS
 drawText : Str, { r : I32, c : I32, fg ? Color, bg ? Color } -> DrawFn
 drawText = \text, { r, c, fg ? Default, bg ? Default } -> \_, pixel ->
         bytes = Str.toUtf8 text
@@ -275,13 +301,13 @@ drawText = \text, { r, c, fg ? Default, bg ? Default } -> \_, pixel ->
         else
             Err {}
 
-updateCursor : State, [Up, Down, Left, Right] -> State
+updateCursor : Model, [Up, Down, Left, Right] -> Model
 updateCursor = \state, direction ->
     when direction is
         Up ->
             { state &
                 cursor: {
-                    row: ((state.cursor.row - 1 + state.screen.height - 1) % state.screen.height) + 1,
+                    row: ((state.cursor.row + state.screen.height - 1) % state.screen.height),
                     col: state.cursor.col,
                 },
             }
@@ -289,7 +315,7 @@ updateCursor = \state, direction ->
         Down ->
             { state &
                 cursor: {
-                    row: ((state.cursor.row + state.screen.height) % state.screen.height) + 1,
+                    row: ((state.cursor.row + 1) % state.screen.height),
                     col: state.cursor.col,
                 },
             }
@@ -298,7 +324,7 @@ updateCursor = \state, direction ->
             { state &
                 cursor: {
                     row: state.cursor.row,
-                    col: ((state.cursor.col - 1 + state.screen.width - 1) % state.screen.width) + 1,
+                    col: ((state.cursor.col + state.screen.width - 1) % state.screen.width),
                 },
             }
 
@@ -306,22 +332,11 @@ updateCursor = \state, direction ->
             { state &
                 cursor: {
                     row: state.cursor.row,
-                    col: ((state.cursor.col + state.screen.width) % state.screen.width) + 1,
+                    col: ((state.cursor.col + 1) % state.screen.width),
                 },
             }
 
-expect updateCursor { cursor: { row: 0, col: 1 }, screen: { width: 10, height: 10 } } Up == { cursor: { row: 9, col: 1 }, screen: { width: 10, height: 10 } }
-expect updateCursor { cursor: { row: 1, col: 1 }, screen: { width: 10, height: 10 } } Up == { cursor: { row: 10, col: 1 }, screen: { width: 10, height: 10 } }
-expect updateCursor { cursor: { row: 0, col: 1 }, screen: { width: 10, height: 10 } } Up == { cursor: { row: 9, col: 1 }, screen: { width: 10, height: 10 } }
-expect updateCursor { cursor: { row: 5, col: 5 }, screen: { width: 10, height: 10 } } Down == { cursor: { row: 6, col: 5 }, screen: { width: 10, height: 10 } }
-expect updateCursor { cursor: { row: 9, col: 5 }, screen: { width: 10, height: 10 } } Down == { cursor: { row: 10, col: 5 }, screen: { width: 10, height: 10 } }
-expect updateCursor { cursor: { row: 5, col: 5 }, screen: { width: 10, height: 10 } } Left == { cursor: { row: 5, col: 4 }, screen: { width: 10, height: 10 } }
-expect updateCursor { cursor: { row: 5, col: 0 }, screen: { width: 10, height: 10 } } Left == { cursor: { row: 5, col: 9 }, screen: { width: 10, height: 10 } }
-expect updateCursor { cursor: { row: 5, col: 5 }, screen: { width: 10, height: 10 } } Right == { cursor: { row: 5, col: 6 }, screen: { width: 10, height: 10 } }
-expect updateCursor { cursor: { row: 5, col: 9 }, screen: { width: 10, height: 10 } } Right == { cursor: { row: 5, col: 10 }, screen: { width: 10, height: 10 } }
-expect updateCursor { cursor: { row: 2, col: 0 }, screen: { width: 10, height: 10 } } Left == { cursor: { row: 2, col: 9 }, screen: { width: 10, height: 10 } }
-
-parseCursorPosition : List U8 -> { row : I32, col : I32 }
+parseCursorPosition : List U8 -> Position
 parseCursorPosition = \bytes ->
     { val: row, rest: afterFirst } = takeNumber { val: 0, rest: List.dropFirst bytes 2 }
     { val: col } = takeNumber { val: 0, rest: List.dropFirst afterFirst 1 }
@@ -350,11 +365,7 @@ expect takeNumber { val: 0, rest: [27, 91, 51, 51, 59, 49, 82] } == { val: 0, re
 expect takeNumber { val: 0, rest: [51, 51, 59, 49, 82] } == { val: 33, rest: [59, 49, 82] }
 expect takeNumber { val: 0, rest: [49, 82] } == { val: 1, rest: [82] }
 
-# Requires TTY Raw Mode
-# Set the cursor to 999,999
-# Read the cursor position
-# Leaves cursor in bottom right corner
-getTerminalSize : Task { width : I32, height : I32 } []
+getTerminalSize : Task ScreenSize []
 getTerminalSize =
     [
         SetCursor { row: 999, col: 999 },
@@ -375,6 +386,7 @@ parseRawStdin = \bytes ->
         [27, 91, 67, ..] -> Key Right
         [27, 91, 68, ..] -> Key Left
         [27, ..] -> Key Escape
+        [13, ..] -> Key Enter
         [3, ..] -> Ctrl LetterC
         _ -> Key Unsupported
 
