@@ -1,7 +1,6 @@
 app "AoC"
     packages {
         pf: "https://github.com/roc-lang/basic-cli/releases/download/0.6.2/c7T4Hp8bAdWz3r9ZrhboBzibCjJag8d0IP_ljb42yVc.tar.br",
-        colors: "https://github.com/lukewilliamboswell/roc-ansi-escapes/releases/download/0.1.1/cPHdNPNh8bjOrlOgfSaGBJDz6VleQwsPdW0LJK6dbGQ.tar.br",
     }
     imports [
         pf.Stdout,
@@ -9,7 +8,8 @@ app "AoC"
         pf.Sleep,
         pf.Tty,
         pf.Task.{ Task },
-        colors.Color.{ Color },
+        ANSI.{ Color },
+
         # App,
     ]
     provides [main] to pf
@@ -21,19 +21,19 @@ State : {
 
 init : State
 init = {
-    cursor: { row: 1, col: 1 },
+    cursor: { row: 10, col: 10 },
     screen: { width: 0, height: 0 },
 }
 
 render : State -> List DrawFn
 render = \state ->
-    cursorStr = "CURSOR row:\(Num.toStr state.cursor.row), col:\(Num.toStr state.cursor.col)"
-    screenStr = "SCREEN height:\(Num.toStr state.screen.height), width:\(Num.toStr state.screen.width)"
+    cursorStr = "CURSOR \(Num.toStr state.cursor.row), \(Num.toStr state.cursor.col)"
+    screenStr = "SCREEN \(Num.toStr state.screen.height), \(Num.toStr state.screen.width)"
     [
-        drawCursor "O",
-        drawText cursorStr { row: 2, col: 2 },
-        drawText screenStr { row: 3, col: 2 },
-        drawBorder "+",
+        drawCursor "+",
+        drawText cursorStr { row: state.screen.height - 2, col: 2 },
+        drawText screenStr { row: state.screen.height - 1, col: 2 },
+        drawBorder "*",
     ]
 
 main : Task {} *
@@ -104,10 +104,10 @@ displayLoadingLoop : U32 -> Task [Step U32, Done U32] []
 displayLoadingLoop = \i ->
 
     # Move the cursor to the far left of screen
-    {} <- Stdout.write (moveCursorANSI Left 1000) |> Task.await
+    {} <- Stdout.write (ANSI.toStr (MoveCursor Left 1000)) |> Task.await
 
     # Write the loading status
-    {} <- Stdout.write (Color.fg "Loading puzzles: \(Num.toStr i)% ..." Green) |> Task.await
+    {} <- Stdout.write (ANSI.fg "Loading puzzles: \(Num.toStr i)% ..." Green) |> Task.await
 
     # Sleep to limit frame rate and simulate loading
     {} <- Sleep.millis 25 |> Task.await
@@ -131,7 +131,7 @@ runLoop = \state ->
     {} <- Sleep.millis 10 |> Task.await
 
     # Clear the screen
-    {} <- Stdout.write clearScreenANSI |> Task.await
+    {} <- Stdout.write (ANSI.toStr ClearScreen) |> Task.await
 
     # Draw the screen
     {} <- drawScreen stateWithScreenUpdated drawFns |> Task.await
@@ -161,7 +161,7 @@ runLoop = \state ->
 
         UnsupportedInput ->
             # Clear the screen
-            {} <- Stdout.write clearScreenANSI |> Task.await
+            {} <- Stdout.write (ANSI.toStr ClearScreen) |> Task.await
 
             dbg
                 "UNSUPPORTED INPUT DETECTED"
@@ -221,7 +221,7 @@ joinPixelRow = \{ char, fg, bg, lines }, pixelRow, row ->
     line =
         rowStrs
         |> Str.joinWith ""
-        |> Str.withPrefix (setCursorANSI { row: Num.toI32 row, col: 1 }) # Set cursor at the start of line
+        |> Str.withPrefix (ANSI.toStr (SetCursor { row: Num.toI32 (row + 1), col: 1 })) # Set cursor at the start of line
 
     { char: " ", fg: prev.fg, bg: prev.bg, lines: List.append lines line }
 
@@ -230,29 +230,26 @@ joinPixels = \{ rowStrs, prev }, curr ->
     pixelStr =
         # If there is a change in colors between pixels then append an ASCII escape
         curr.char
-        |> \str -> if curr.fg != prev.fg then Color.fg str curr.fg else str
-        |> \str -> if curr.bg != prev.bg then Color.bg str curr.bg else str
+        |> \str -> if curr.fg != prev.fg then "\(ANSI.toStr (SetFgColor curr.fg))\(str)" else str
+        |> \str -> if curr.bg != prev.bg then "\(ANSI.toStr (SetBgColor curr.bg))\(str)" else str
 
     { rowStrs: List.append rowStrs pixelStr, prev: curr }
 
 drawBorder : Str -> DrawFn
 drawBorder = \char -> \state, { row, col } ->
         if row == 1 || row == state.screen.height then
-            Ok { char, fg: Default, bg: Default }
+            Ok { char, fg: Green, bg: Default }
         else if col == 1 || col == state.screen.width then
-            Ok { char, fg: Default, bg: Default }
+            Ok { char, fg: Green, bg: Default }
         else
             Err {}
 
 drawCursor : Str -> DrawFn
 drawCursor = \char -> \state, { row, col } ->
         if
-            (row - 1)
-            == state.cursor.row
-            && (col - 1)
-            == state.cursor.col
+            ((row - 1) == state.cursor.row) && ((col - 1) == state.cursor.col)
         then
-            Ok { char, fg: Default, bg: Default }
+            Ok { char, fg: Red, bg: Default }
         else
             Err {}
 
@@ -265,28 +262,10 @@ drawText = \text, pos -> \_, pixel ->
             bytes
             |> List.get (Num.toNat (pixel.col - pos.col))
             |> Result.try \b -> Str.fromUtf8 [b]
-            |> Result.map \char -> { char, fg: Default, bg: Default }
+            |> Result.map \char -> { char, fg: Blue, bg: Default }
             |> Result.mapErr \_ -> {}
         else
             Err {}
-
-clearScreenANSI : Str
-clearScreenANSI = "\u(001b)c"
-
-setCursorANSI : { row : I32, col : I32 } -> Str
-setCursorANSI = \{ row, col } ->
-    rowStr = row |> Num.toStr
-    colStr = col |> Num.toStr
-
-    "\u(001b)[\(rowStr);\(colStr)H"
-
-moveCursorANSI : [Up, Down, Left, Right], I32 -> Str
-moveCursorANSI = \direction, steps ->
-    when direction is
-        Up -> "\u(001b)[\(Num.toStr steps)A"
-        Down -> "\u(001b)[\(Num.toStr steps)B"
-        Right -> "\u(001b)[\(Num.toStr steps)C"
-        Left -> "\u(001b)[\(Num.toStr steps)D"
 
 updateCursor : State, [Up, Down, Left, Right] -> State
 updateCursor = \state, direction ->
@@ -335,9 +314,6 @@ expect updateCursor { cursor: { row: 5, col: 5 }, screen: { width: 10, height: 1
 expect updateCursor { cursor: { row: 5, col: 9 }, screen: { width: 10, height: 10 } } Right == { cursor: { row: 5, col: 0 }, screen: { width: 10, height: 10 } }
 expect updateCursor { cursor: { row: 2, col: 0 }, screen: { width: 10, height: 10 } } Left == { cursor: { row: 2, col: 9 }, screen: { width: 10, height: 10 } }
 
-getCursorANSI : Str
-getCursorANSI = "\u(001b)[6n"
-
 parseCursorPosition : List U8 -> { row : I32, col : I32 }
 parseCursorPosition = \bytes ->
     { val: row, rest: afterFirst } = takeNumber { val: 0, rest: List.dropFirst bytes 2 }
@@ -373,7 +349,11 @@ expect takeNumber { val: 0, rest: [49, 82] } == { val: 1, rest: [82] }
 # Leaves cursor in bottom right corner
 getTerminalSize : Task { width : I32, height : I32 } []
 getTerminalSize =
-    [setCursorANSI { row: 999, col: 999 }, getCursorANSI]
+    [
+        SetCursor { row: 999, col: 999 }, 
+        GetCursor
+    ]
+    |> List.map ANSI.toStr
     |> Str.joinWith ""
     |> Stdout.write
     |> Task.await \{} -> Stdin.bytes
