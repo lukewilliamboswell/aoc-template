@@ -4,13 +4,13 @@ A template for solving AoC puzzles using [Roc](https://www.roc-lang.org) 🤘
 
 Roc is a fast, friendly, and functional language which makes it great for solving puzzles.
 
-**STATUS:** Work In Progress 🚧
+**STATUS:** 🚧 Work In Progress 🚧
 
 ## Command Line Interface App 
 
 Run the CLI app using `roc run cli.roc`
 
-![example using CLI](example-cli.png)
+![example using CLI](example-cli.gif)
 
 ## Webserver App 
 
