@@ -151,21 +151,21 @@ runLoop = \prevState ->
         Exit -> Task.ok (Done stateWithInput)
         Crash _ -> Task.ok (Step stateWithInput)
 
-DrawFn : Model, Position -> Result Pixel {}
+DrawFn : Position, Position -> Result Pixel {}
 Pixel : { char : Str, fg : Color, bg : Color }
 
 # Loop through each pixel in screen and build up a single string to write to stdout
-drawScreen : Model, List DrawFn -> Task {} []
-drawScreen = \state, drawFns ->
+drawScreen : {cursor: Position, screen : ScreenSize}*, List DrawFn -> Task {} []
+drawScreen = \{cursor, screen}, drawFns ->
     pixels =
-        row <- List.range { start: At 0, end: Before state.screen.height } |> List.map
-        col <- List.range { start: At 0, end: Before state.screen.width } |> List.map
+        row <- List.range { start: At 0, end: Before screen.height } |> List.map
+        col <- List.range { start: At 0, end: Before screen.width } |> List.map
 
         List.walkUntil
             drawFns
             { char: " ", fg: Default, bg: Default }
             \defaultPixel, drawFn ->
-                when drawFn state { row, col } is
+                when drawFn cursor { row, col } is
                     Ok pixel -> Break pixel
                     Err _ -> Continue defaultPixel
 
@@ -247,9 +247,9 @@ drawHLine = \{ r, c, len, fg ? Default, bg ? Default, char ? "-" } -> \_, { row,
             Err {}
 
 drawCursor : { fg ? Color, bg ? Color, char ? Str } -> DrawFn
-drawCursor = \{ fg ? Default, bg ? Gray, char ? " " } -> \state, { row, col } ->
+drawCursor = \{ fg ? Default, bg ? Gray, char ? " " } -> \cursor, { row, col } ->
         if
-            (row == state.cursor.row) && (col == state.cursor.col)
+            (row == cursor.row) && (col == cursor.col)
         then
             Ok { char, fg, bg }
         else
