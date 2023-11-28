@@ -5,14 +5,13 @@ app "AoC"
     imports [
         pf.Stdout,
         pf.Stdin,
-        pf.Sleep,
         pf.Tty,
         pf.Task.{ Task },
-        ANSI.{ Color },
+        ANSI.{ Color, Input },
         pf.Utc.{ Utc },
         # App,
     ]
-    provides [main] to pf
+    provides [main, debugScreen] to pf
 
 ScreenSize : { width : I32, height : I32 }
 Position : { row : I32, col : I32 }
@@ -23,6 +22,7 @@ Model : {
     puzzles : List Str,
     prevDraw : Utc,
     currDraw : Utc,
+    inputs : List Input,
 }
 
 init : Model
@@ -30,42 +30,22 @@ init = {
     cursor: { row: 3, col: 3 },
     screen: { width: 0, height: 0 },
     puzzles: [
-        "2022 Day 1: Calorie Counting Part 1",
-        "2022 Day 1: Calorie Counting Part 2",
-        "2022 Day 2: Rock Paper Scissors Part 1",
-        "2022 Day 2: Rock Paper Scissors Part 2",
-        "2022 Day 3: Rucksack Reorganization Part 1",
-        "2022 Day 3: Rucksack Reorganization Part 2",
+        "2022 Day 1: Calorie Counting",
+        "2022 Day 2: Rock Paper Scissors",
+        "2022 Day 3: Rucksack Reorganization",
     ],
     prevDraw: Utc.fromMillisSinceEpoch 0,
     currDraw: Utc.fromMillisSinceEpoch 0,
+    inputs: List.withCapacity 1000,
 }
 
 render : Model -> List DrawFn
 render = \state ->
-    cursorStr = "CURSOR \(Num.toStr state.cursor.row), \(Num.toStr state.cursor.col)"
-    screenStr = "SCREEN \(Num.toStr state.screen.height), \(Num.toStr state.screen.width) TOTAL PIXELS \(Num.toStr (state.screen.height * state.screen.width))"
-    inputDelatStr = "INPUT DELTA \(Num.toStr (Utc.deltaAsMillis state.prevDraw state.currDraw))ms"
     [
-        drawText " Advent of Code Puzzles" { r: 1, c: 1, fg: Green },
-        drawCursor { bg: Green },
-        drawText inputDelatStr { r: state.screen.height - 4, c: 1, fg: Magenta },
-        drawText cursorStr { r: state.screen.height - 3, c: 1, fg: Magenta },
-        drawText screenStr { r: state.screen.height - 2, c: 1, fg: Magenta },
-        drawBox { r: 0, c: 0, w: state.screen.width, h: state.screen.height }, # border
-        drawVLine { r: 1, c: state.screen.width // 2, len: state.screen.height, fg: Blue },
-        drawHLine { c: 1, r: state.screen.height // 2, len: state.screen.width, fg: Blue },
+        homeScreen state,
+        debugScreen state,
     ]
-    |> List.concat
-        (
-            List.mapWithIndex state.puzzles \puzzleStr, idx ->
-                row = 3 + (Num.toI32 idx)
-                if (state.cursor.row == row) then
-                    # Selected puzzle
-                    drawText " - \(puzzleStr)" { r: row, c: 2, fg: Green }
-                else
-                    drawText " - \(puzzleStr)" { r: row, c: 2, fg: Gray }
-        )
+    |> List.join
 
 main : Task {} *
 main = runTask |> Task.onErr \_ -> Stdout.line "ERROR Something went wrong"
@@ -142,47 +122,34 @@ runLoop = \prevState ->
     # Update State for this draw
     state = { prevState & screen: terminalSize, prevDraw: prevState.currDraw, currDraw: now }
 
-    # Sleep to limit frame rate
-    {} <- Sleep.millis 5 |> Task.await
-
     # Draw the screen
     drawFns = render state
     {} <- drawScreen state drawFns |> Task.await
 
     # Get user input
-    bytes <- Stdin.bytes |> Task.await
+    input <- Stdin.bytes |> Task.map ANSI.parseRawStdin |> Task.await
 
+    # Parse input into command
     command =
-        when parseRawStdin bytes is
-            Key Up -> MoveCursor Up
-            Key Down -> MoveCursor Down
-            Key Left -> MoveCursor Left
-            Key Right -> MoveCursor Right
-            Key Escape -> Exit
-            Key Enter -> Nothing
-            Ctrl LetterC -> Exit
-            _ -> UnsupportedInput
+        when input is
+            KeyPress Up -> MoveCursor Up
+            KeyPress Down -> MoveCursor Down
+            KeyPress Left -> MoveCursor Left
+            KeyPress Right -> MoveCursor Right
+            KeyPress Escape -> Exit
+            CtrlC -> Exit
+            Unsupported bytes -> Crash bytes
+            KeyPress _ -> Nothing
+
+    # Update state too keep a history of inputs
+    stateWithInput = { state & inputs: List.append state.inputs input }
 
     # Handle input
     when command is
-        MoveCursor direction ->
-            # Move the cursor and step the game loop
-            Task.ok (Step (updateCursor state direction))
-
-        Exit ->
-            # Exit the game loop
-            Task.ok (Done state)
-
-        UnsupportedInput ->
-            # Clear the screen
-            {} <- Stdout.write (ANSI.toStr ClearScreen) |> Task.await
-
-            dbg
-                T "UNSUPPORTED INPUT DETECTED" bytes
-
-            Task.ok (Done state)
-
-        Nothing -> Task.ok (Step state)
+        Nothing -> Task.ok (Step stateWithInput)
+        MoveCursor direction -> Task.ok (Step (updateCursor stateWithInput direction))
+        Exit -> Task.ok (Done stateWithInput)
+        Crash _ -> Task.ok (Step stateWithInput)
 
 DrawFn : Model, Position -> Result Pixel {}
 Pixel : { char : Str, fg : Color, bg : Color }
@@ -378,17 +345,44 @@ getTerminalSize =
     |> Task.map parseCursorPosition
     |> Task.map \{ row, col } -> { width: col, height: row }
 
-parseRawStdin : List U8 -> _
-parseRawStdin = \bytes ->
-    when bytes is
-        [27, 91, 65, ..] -> Key Up
-        [27, 91, 66, ..] -> Key Down
-        [27, 91, 67, ..] -> Key Right
-        [27, 91, 68, ..] -> Key Left
-        [27, ..] -> Key Escape
-        [13, ..] -> Key Enter
-        [3, ..] -> Ctrl LetterC
-        _ -> Key Unsupported
+homeScreen : Model -> List DrawFn
+homeScreen = \state ->
+    [
+        [
+            drawCursor { bg: Green },
+            drawText " Advent of Code Solutions" { r: 1, c: 1, fg: Green },
+            drawText " ENTER TO RUN, ESCAPE TO QUIT" { r: 2, c: 1, fg: Gray },
+            drawBox { r: 0, c: 0, w: state.screen.width, h: state.screen.height },
+        ],
+        (
+            List.mapWithIndex state.puzzles \puzzleStr, idx ->
+                row = 3 + (Num.toI32 idx)
+                if (state.cursor.row == row) then
+                    # Selected puzzle
+                    drawText " - \(puzzleStr)" { r: row, c: 2, fg: Green }
+                else
+                    drawText " - \(puzzleStr)" { r: row, c: 2, fg: Black }
+        ),
+    ]
+    |> List.join
 
-expect parseRawStdin [27, 91, 65] == Key Up
-expect parseRawStdin [27] == Key Escape
+debugScreen : Model -> List DrawFn
+debugScreen = \state ->
+    cursorStr = "CURSOR R\(Num.toStr state.cursor.row), C\(Num.toStr state.cursor.col)"
+    screenStr = "SCREEN H\(Num.toStr state.screen.height), W\(Num.toStr state.screen.width)"
+    inputDelatStr = "DELTA \(Num.toStr (Utc.deltaAsMillis state.prevDraw state.currDraw)) millis"
+    lastInput = 
+        state.inputs 
+        |> List.last 
+        |> Result.map ANSI.inputToStr  
+        |> Result.map \str -> "INPUT \(str)"
+        |> Result.withDefault "NO INPUT YET"
+
+    [
+        drawText lastInput { r: state.screen.height - 5, c: 1, fg: Magenta },
+        drawText inputDelatStr { r: state.screen.height - 4, c: 1, fg: Magenta },
+        drawText cursorStr { r: state.screen.height - 3, c: 1, fg: Magenta },
+        drawText screenStr { r: state.screen.height - 2, c: 1, fg: Magenta },
+        drawVLine { r: 1, c: state.screen.width // 2, len: state.screen.height, fg: Gray },
+        drawHLine { c: 1, r: state.screen.height // 2, len: state.screen.width, fg: Gray },
+    ]
