@@ -21,39 +21,39 @@ State : {
 
 init : State
 init = {
-    cursor: { row: 10, col: 10 },
+    cursor: { row: 2, col: 2 },
     screen: { width: 0, height: 0 },
 }
 
 render : State -> List DrawFn
 render = \state ->
     cursorStr = "CURSOR \(Num.toStr state.cursor.row), \(Num.toStr state.cursor.col)"
-    screenStr = "SCREEN \(Num.toStr state.screen.height), \(Num.toStr state.screen.width)"
+    screenStr = "SCREEN \(Num.toStr state.screen.height), \(Num.toStr state.screen.width) TOTAL PIXELS \(Num.toStr (state.screen.height * state.screen.width))"
     [
-        drawCursor "+",
-        drawText cursorStr { row: state.screen.height - 2, col: 2 },
-        drawText screenStr { row: state.screen.height - 1, col: 2 },
-        drawBorder "*",
+        drawCursor { bg: Green },
+        drawText cursorStr { r: state.screen.height - 2, c: 2, fg: Magenta },
+        drawText screenStr { r: state.screen.height - 1, c: 2, fg: Cyan },
+        drawBox { r: 1, c: 1, w: state.screen.width, h: state.screen.height }, # border
+        drawVLine { r: 2, c: state.screen.width // 2, len: state.screen.height, fg: Blue },
+        drawHLine { r: state.screen.height // 2, c: 2, len: state.screen.width, fg: Blue },
     ]
 
 main : Task {} *
-main =
-    task =
-        # Display Loading
-        _ <- Task.loop 0 displayLoadingLoop |> Task.await
+main = runTask |> Task.onErr \_ -> Stdout.line "ERROR Something went wrong"
 
-        # Enable TTY Raw mode
-        {} <- Tty.enableRawMode |> Task.await
+runTask : Task {} []
+runTask =
+    # Enable TTY Raw mode
+    {} <- Tty.enableRawMode |> Task.await
 
-        # Run App Loop
-        _ <- Task.loop init runLoop |> Task.await
+    # Run App Loop
+    _ <- Task.loop init runLoop |> Task.await
 
-        # Restore TTY Mode
-        {} <- Tty.disableRawMode |> Task.await
+    # Restore TTY Mode
+    {} <- Tty.disableRawMode |> Task.await
 
-        Task.ok {}
+    Task.ok {}
 
-    task |> Task.onErr \_ -> crash "something died"
 
 # TODO ADD PUZZLE STUFF BACK IN
 # when App.solvePuzzle { year: 2022, day: 1, puzzle: Part1 } is
@@ -100,24 +100,6 @@ main =
 #         |> Str.joinWith ""
 #         |> Stdout.line
 
-displayLoadingLoop : U32 -> Task [Step U32, Done U32] []
-displayLoadingLoop = \i ->
-
-    # Move the cursor to the far left of screen
-    {} <- Stdout.write (ANSI.toStr (MoveCursor Left 1000)) |> Task.await
-
-    # Write the loading status
-    {} <- Stdout.write (ANSI.fg "Loading puzzles: \(Num.toStr i)% ..." Green) |> Task.await
-
-    # Sleep to limit frame rate and simulate loading
-    {} <- Sleep.millis 25 |> Task.await
-
-    # Loop until 100% "loaded"
-    if i < 100 then
-        Task.ok (Step (i + 5))
-    else
-        Task.ok (Done i)
-
 runLoop : State -> Task [Step State, Done State] []
 runLoop = \state ->
 
@@ -163,11 +145,11 @@ runLoop = \state ->
             # Clear the screen
             {} <- Stdout.write (ANSI.toStr ClearScreen) |> Task.await
 
-            dbg
-                "UNSUPPORTED INPUT DETECTED"
+            # dbg
+            #     "UNSUPPORTED INPUT DETECTED"
 
-            dbg
-                bytes
+            # dbg
+            #     bytes
 
             Task.ok (Done stateWithScreenUpdated)
 
@@ -206,8 +188,6 @@ joinAllPixels = \rows ->
         joinPixelRow
     |> .lines
     |> Str.joinWith "\n"
-# |> \str -> Color.fg str Default
-# |> \str -> Color.bg str Default
 
 joinPixelRow : { char : Str, fg : Color, bg : Color, lines : List Str }, List Pixel, Nat -> { char : Str, fg : Color, bg : Color, lines : List Str }
 joinPixelRow = \{ char, fg, bg, lines }, pixelRow, row ->
@@ -235,34 +215,62 @@ joinPixels = \{ rowStrs, prev }, curr ->
 
     { rowStrs: List.append rowStrs pixelStr, prev: curr }
 
-drawBorder : Str -> DrawFn
-drawBorder = \char -> \state, { row, col } ->
-        if row == 1 || row == state.screen.height then
-            Ok { char, fg: Green, bg: Default }
-        else if col == 1 || col == state.screen.width then
-            Ok { char, fg: Green, bg: Default }
+drawBox : { r : I32, c : I32, w : I32, h : I32, fg ? Color, bg ? Color, char ? Str } -> DrawFn
+drawBox = \{ r, c, w, h, fg ? Gray, bg ? Default, char ? "#" } -> \_, { row, col } ->
+
+        startRow = r
+        endRow = (r + h)
+        startCol = c
+        endCol = (c + w)
+
+        if row == r && (col >= startCol && col < endCol) then
+            # TOP BORDER
+            Ok { char, fg, bg }
+        else if row == (r + h - 1) && (col >= startCol && col < endCol) then
+            # BOTTOM BORDER
+            Ok { char, fg, bg }
+        else if col == c && (row >= startRow && row < endRow) then
+            # LEFT BORDER
+            Ok { char, fg, bg }
+        else if col == (c + w - 1) && (row >= startRow && row < endRow) then
+            # RIGHT BORDER
+            Ok { char, fg, bg }
         else
             Err {}
 
-drawCursor : Str -> DrawFn
-drawCursor = \char -> \state, { row, col } ->
+drawVLine : { r : I32, c : I32, len : I32, fg ? Color, bg ? Color, char ? Str } -> DrawFn
+drawVLine = \{ r, c, len, fg ? Default, bg ? Default, char ? "|" } -> \_, { row, col } ->
+        if col == c && (row >= r && row < (r + len)) then
+            Ok { char, fg, bg }
+        else
+            Err {}
+
+drawHLine : { r : I32, c : I32, len : I32, fg ? Color, bg ? Color, char ? Str } -> DrawFn
+drawHLine = \{ r, c, len, fg ? Default, bg ? Default, char ? "-" } -> \_, { row, col } ->
+        if row == r && (col >= c && col < (c + len)) then
+            Ok { char, fg, bg }
+        else
+            Err {}
+
+drawCursor : { fg ? Color, bg ? Color, char ? Str } -> DrawFn
+drawCursor = \{ fg ? Default, bg ? Gray, char ? " " } -> \state, { row, col } ->
         if
-            ((row - 1) == state.cursor.row) && ((col - 1) == state.cursor.col)
+            (row == state.cursor.row) && (col == state.cursor.col)
         then
-            Ok { char, fg: Red, bg: Default }
+            Ok { char, fg, bg }
         else
             Err {}
 
 # NOTE ASSUME ASCII CHARACTERS
-drawText : Str, { row : I32, col : I32 } -> DrawFn
-drawText = \text, pos -> \_, pixel ->
+drawText : Str, { r : I32, c : I32, fg ? Color, bg ? Color } -> DrawFn
+drawText = \text, { r, c, fg ? Default, bg ? Default } -> \_, pixel ->
         bytes = Str.toUtf8 text
         len = text |> Str.toUtf8 |> List.len |> Num.toI32
-        if pixel.row == pos.row && pixel.col >= pos.col && pixel.col < (pos.col + len) then
+        if pixel.row == r && pixel.col >= c && pixel.col < (c + len) then
             bytes
-            |> List.get (Num.toNat (pixel.col - pos.col))
+            |> List.get (Num.toNat (pixel.col - c))
             |> Result.try \b -> Str.fromUtf8 [b]
-            |> Result.map \char -> { char, fg: Blue, bg: Default }
+            |> Result.map \char -> { char, fg, bg }
             |> Result.mapErr \_ -> {}
         else
             Err {}
@@ -273,7 +281,7 @@ updateCursor = \state, direction ->
         Up ->
             { state &
                 cursor: {
-                    row: ((state.cursor.row - 1 + state.screen.height) % state.screen.height),
+                    row: ((state.cursor.row - 1 + state.screen.height - 1) % state.screen.height) + 1,
                     col: state.cursor.col,
                 },
             }
@@ -281,7 +289,7 @@ updateCursor = \state, direction ->
         Down ->
             { state &
                 cursor: {
-                    row: ((state.cursor.row + 1) % state.screen.height),
+                    row: ((state.cursor.row + state.screen.height) % state.screen.height) + 1,
                     col: state.cursor.col,
                 },
             }
@@ -290,7 +298,7 @@ updateCursor = \state, direction ->
             { state &
                 cursor: {
                     row: state.cursor.row,
-                    col: ((state.cursor.col - 1 + state.screen.width) % state.screen.width),
+                    col: ((state.cursor.col - 1 + state.screen.width - 1) % state.screen.width) + 1,
                 },
             }
 
@@ -298,20 +306,19 @@ updateCursor = \state, direction ->
             { state &
                 cursor: {
                     row: state.cursor.row,
-                    col: ((state.cursor.col + 1) % state.screen.width),
+                    col: ((state.cursor.col + state.screen.width) % state.screen.width) + 1,
                 },
             }
 
-expect updateCursor { cursor: { row: 1, col: 1 }, screen: { width: 10, height: 10 } } Up == { cursor: { row: 0, col: 1 }, screen: { width: 10, height: 10 } }
 expect updateCursor { cursor: { row: 0, col: 1 }, screen: { width: 10, height: 10 } } Up == { cursor: { row: 9, col: 1 }, screen: { width: 10, height: 10 } }
-expect updateCursor { cursor: { row: 1, col: 1 }, screen: { width: 10, height: 10 } } Up == { cursor: { row: 0, col: 1 }, screen: { width: 10, height: 10 } }
+expect updateCursor { cursor: { row: 1, col: 1 }, screen: { width: 10, height: 10 } } Up == { cursor: { row: 10, col: 1 }, screen: { width: 10, height: 10 } }
 expect updateCursor { cursor: { row: 0, col: 1 }, screen: { width: 10, height: 10 } } Up == { cursor: { row: 9, col: 1 }, screen: { width: 10, height: 10 } }
 expect updateCursor { cursor: { row: 5, col: 5 }, screen: { width: 10, height: 10 } } Down == { cursor: { row: 6, col: 5 }, screen: { width: 10, height: 10 } }
-expect updateCursor { cursor: { row: 9, col: 5 }, screen: { width: 10, height: 10 } } Down == { cursor: { row: 0, col: 5 }, screen: { width: 10, height: 10 } }
+expect updateCursor { cursor: { row: 9, col: 5 }, screen: { width: 10, height: 10 } } Down == { cursor: { row: 10, col: 5 }, screen: { width: 10, height: 10 } }
 expect updateCursor { cursor: { row: 5, col: 5 }, screen: { width: 10, height: 10 } } Left == { cursor: { row: 5, col: 4 }, screen: { width: 10, height: 10 } }
 expect updateCursor { cursor: { row: 5, col: 0 }, screen: { width: 10, height: 10 } } Left == { cursor: { row: 5, col: 9 }, screen: { width: 10, height: 10 } }
 expect updateCursor { cursor: { row: 5, col: 5 }, screen: { width: 10, height: 10 } } Right == { cursor: { row: 5, col: 6 }, screen: { width: 10, height: 10 } }
-expect updateCursor { cursor: { row: 5, col: 9 }, screen: { width: 10, height: 10 } } Right == { cursor: { row: 5, col: 0 }, screen: { width: 10, height: 10 } }
+expect updateCursor { cursor: { row: 5, col: 9 }, screen: { width: 10, height: 10 } } Right == { cursor: { row: 5, col: 10 }, screen: { width: 10, height: 10 } }
 expect updateCursor { cursor: { row: 2, col: 0 }, screen: { width: 10, height: 10 } } Left == { cursor: { row: 2, col: 9 }, screen: { width: 10, height: 10 } }
 
 parseCursorPosition : List U8 -> { row : I32, col : I32 }
@@ -350,8 +357,8 @@ expect takeNumber { val: 0, rest: [49, 82] } == { val: 1, rest: [82] }
 getTerminalSize : Task { width : I32, height : I32 } []
 getTerminalSize =
     [
-        SetCursor { row: 999, col: 999 }, 
-        GetCursor
+        SetCursor { row: 999, col: 999 },
+        GetCursor,
     ]
     |> List.map ANSI.toStr
     |> Str.joinWith ""

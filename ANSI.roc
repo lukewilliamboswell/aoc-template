@@ -13,7 +13,7 @@ Code : [
 ]
 
 ## 8-bit colors supported on *most* modern terminal emulators
-Color : [   
+Color : [
     Black,
     Red,
     Green,
@@ -21,15 +21,15 @@ Color : [
     Blue,
     Magenta,
     Cyan,
-    White,
-    BrightBlack, # for terminals which support axiterm specification    
-    BrightRed, # for terminals which support axiterm specification  
-    BrightGreen, # for terminals which support axiterm specification    
-    BrightYellow, # for terminals which support axiterm specification   
-    BrightBlue, # for terminals which support axiterm specification 
-    BrightMagenta, # for terminals which support axiterm specification  
-    BrightCyan, # for terminals which support axiterm specification 
-    BrightWhite, # for terminals which support axiterm specification    
+    Gray,
+    BrightBlack, # for terminals which support axiterm specification
+    BrightRed, # for terminals which support axiterm specification
+    BrightGreen, # for terminals which support axiterm specification
+    BrightYellow, # for terminals which support axiterm specification
+    BrightBlue, # for terminals which support axiterm specification
+    BrightMagenta, # for terminals which support axiterm specification
+    BrightCyan, # for terminals which support axiterm specification
+    BrightWhite, # for terminals which support axiterm specification
     Default,
 ]
 
@@ -37,12 +37,12 @@ Color : [
 esc : Str
 esc = "\u(001b)"
 
-toStr : Code -> Str 
+toStr : Code -> Str
 toStr = \code ->
     when code is
-        ClearScreen -> "\(esc)c" 
+        ClearScreen -> "\(esc)c"
         GetCursor -> "\(esc)[6n"
-        SetCursor {row, col} -> "\(esc)[\(Num.toStr row);\(Num.toStr col)H"
+        SetCursor { row, col } -> "\(esc)[\(Num.toStr row);\(Num.toStr col)H"
         SetFgColor color -> fromFgColor color
         SetBgColor color -> fromBgColor color
         MoveCursor direction steps ->
@@ -62,7 +62,7 @@ fromFgColor = \color ->
         Blue -> "\(esc)[34m"
         Magenta -> "\(esc)[35m"
         Cyan -> "\(esc)[36m"
-        White -> "\(esc)[37m"
+        Gray -> "\(esc)[37m"
         Default -> "\(esc)[39m"
         BrightBlack -> "\(esc)[90m"
         BrightRed -> "\(esc)[91m"
@@ -83,7 +83,7 @@ fromBgColor = \color ->
         Blue -> "\(esc)[44m"
         Magenta -> "\(esc)[45m"
         Cyan -> "\(esc)[46m"
-        White -> "\(esc)[47m"
+        Gray -> "\(esc)[47m"
         Default -> "\(esc)[49m"
         BrightBlack -> "\(esc)[100m"
         BrightRed -> "\(esc)[101m"
@@ -103,5 +103,5 @@ bg : Str, Color -> Str
 bg = \str, color -> "\(toStr (SetBgColor color))\(str)\(esc)[0m"
 
 ## Adds color formatting to a Str and then resets to Default
-with : Str, {fg: Color, bg: Color} -> Str
+with : Str, { fg : Color, bg : Color } -> Str
 with = \str, colors -> "\(toStr (SetFgColor colors.fg))\(toStr (SetBgColor colors.bg))\(str)\(esc)[0m"
