@@ -1,5 +1,33 @@
+# TODO move this back into [lukewilliamboswell/roc-ansi](https://github.com/lukewilliamboswell/roc-ansi)
 interface ANSI
-    exposes [Color, toStr, Code, fg, bg, with, Input, inputToStr, parseRawStdin]
+    exposes [
+        # Color.roc
+        Color,
+        toStr,
+        withFg,
+        withBg,
+        withColor,
+
+        # Code.roc
+        Code,
+
+        # TUI.roc
+        DrawFn,
+        Pixel,
+        ScreenSize,
+        Position,
+        Input,
+        parseCursor,
+        updateCursor,
+        inputToStr,
+        parseRawStdin,
+        drawScreen,
+        drawText,
+        drawVLine,
+        drawHLine,
+        drawBox,
+        drawCursor,
+    ]
     imports []
 
 ## [ANSI Escape Codes](https://en.wikipedia.org/wiki/ANSI_escape_code)
@@ -103,16 +131,16 @@ fromBgColor = \color ->
         BrightWhite -> "\(esc)[107m"
 
 ## Adds foreground color formatting to a Str and then resets to Default
-fg : Str, Color -> Str
-fg = \str, color -> "\(toStr (SetFgColor color))\(str)\(esc)[0m"
+withFg : Str, Color -> Str
+withFg = \str, color -> "\(toStr (SetFgColor color))\(str)\(esc)[0m"
 
 ## Adds background color formatting to a Str and then resets to Default
-bg : Str, Color -> Str
-bg = \str, color -> "\(toStr (SetBgColor color))\(str)\(esc)[0m"
+withBg : Str, Color -> Str
+withBg = \str, color -> "\(toStr (SetBgColor color))\(str)\(esc)[0m"
 
 ## Adds color formatting to a Str and then resets to Default
-with : Str, { fg : Color, bg : Color } -> Str
-with = \str, colors -> "\(toStr (SetFgColor colors.fg))\(toStr (SetBgColor colors.bg))\(str)\(esc)[0m"
+withColor : Str, { fg : Color, bg : Color } -> Str
+withColor = \str, colors -> "\(toStr (SetFgColor colors.fg))\(toStr (SetBgColor colors.bg))\(str)\(esc)[0m"
 
 Key : [
     Up,
@@ -447,3 +475,187 @@ keyToStr = \key ->
         Number7 -> "7"
         Number8 -> "8"
         Number9 -> "9"
+
+# TODO MOVE INTO TUI.roc
+
+ScreenSize : { width : I32, height : I32 }
+Position : { row : I32, col : I32 }
+DrawFn : Position, Position -> Result Pixel {}
+Pixel : { char : Str, fg : Color, bg : Color }
+
+parseCursor : List U8 -> Position
+parseCursor = \bytes ->
+    { val: row, rest: afterFirst } = takeNumber { val: 0, rest: List.dropFirst bytes 2 }
+    { val: col } = takeNumber { val: 0, rest: List.dropFirst afterFirst 1 }
+
+    { row, col }
+
+# test "ESC[33;1R"
+expect parseCursor [27, 91, 51, 51, 59, 49, 82] == { col: 1, row: 33 }
+
+takeNumber : { val : I32, rest : List U8 } -> { val : I32, rest : List U8 }
+takeNumber = \in ->
+    when in.rest is
+        [a, ..] if a == '0' -> takeNumber { val: in.val * 10 + 0, rest: List.dropFirst in.rest 1 }
+        [a, ..] if a == '1' -> takeNumber { val: in.val * 10 + 1, rest: List.dropFirst in.rest 1 }
+        [a, ..] if a == '2' -> takeNumber { val: in.val * 10 + 2, rest: List.dropFirst in.rest 1 }
+        [a, ..] if a == '3' -> takeNumber { val: in.val * 10 + 3, rest: List.dropFirst in.rest 1 }
+        [a, ..] if a == '4' -> takeNumber { val: in.val * 10 + 4, rest: List.dropFirst in.rest 1 }
+        [a, ..] if a == '5' -> takeNumber { val: in.val * 10 + 5, rest: List.dropFirst in.rest 1 }
+        [a, ..] if a == '6' -> takeNumber { val: in.val * 10 + 6, rest: List.dropFirst in.rest 1 }
+        [a, ..] if a == '7' -> takeNumber { val: in.val * 10 + 7, rest: List.dropFirst in.rest 1 }
+        [a, ..] if a == '8' -> takeNumber { val: in.val * 10 + 8, rest: List.dropFirst in.rest 1 }
+        [a, ..] if a == '9' -> takeNumber { val: in.val * 10 + 9, rest: List.dropFirst in.rest 1 }
+        _ -> in
+
+expect takeNumber { val: 0, rest: [27, 91, 51, 51, 59, 49, 82] } == { val: 0, rest: [27, 91, 51, 51, 59, 49, 82] }
+expect takeNumber { val: 0, rest: [51, 51, 59, 49, 82] } == { val: 33, rest: [59, 49, 82] }
+expect takeNumber { val: 0, rest: [49, 82] } == { val: 1, rest: [82] }
+
+updateCursor : { cursor : Position, screen : ScreenSize }a, [Up, Down, Left, Right] -> { cursor : Position, screen : ScreenSize }a
+updateCursor = \state, direction ->
+    when direction is
+        Up ->
+            { state &
+                cursor: {
+                    row: ((state.cursor.row + state.screen.height - 1) % state.screen.height),
+                    col: state.cursor.col,
+                },
+            }
+
+        Down ->
+            { state &
+                cursor: {
+                    row: ((state.cursor.row + 1) % state.screen.height),
+                    col: state.cursor.col,
+                },
+            }
+
+        Left ->
+            { state &
+                cursor: {
+                    row: state.cursor.row,
+                    col: ((state.cursor.col + state.screen.width - 1) % state.screen.width),
+                },
+            }
+
+        Right ->
+            { state &
+                cursor: {
+                    row: state.cursor.row,
+                    col: ((state.cursor.col + 1) % state.screen.width),
+                },
+            }
+
+## Loop through each pixel in screen and build up a single string to write to stdout
+drawScreen : { cursor : Position, screen : ScreenSize }*, List DrawFn -> Str
+drawScreen = \{ cursor, screen }, drawFns ->
+    pixels =
+        row <- List.range { start: At 0, end: Before screen.height } |> List.map
+        col <- List.range { start: At 0, end: Before screen.width } |> List.map
+
+        List.walkUntil
+            drawFns
+            { char: " ", fg: Default, bg: Default }
+            \defaultPixel, drawFn ->
+                when drawFn cursor { row, col } is
+                    Ok pixel -> Break pixel
+                    Err _ -> Continue defaultPixel
+
+    pixels
+    |> joinAllPixels
+
+joinAllPixels : List (List Pixel) -> Str
+joinAllPixels = \rows ->
+    List.walkWithIndex
+        rows
+        {
+            char: " ",
+            fg: Default,
+            bg: Default,
+            lines: List.withCapacity (List.len rows),
+        }
+        joinPixelRow
+    |> .lines
+    |> Str.joinWith ""
+
+joinPixelRow : { char : Str, fg : Color, bg : Color, lines : List Str }, List Pixel, Nat -> { char : Str, fg : Color, bg : Color, lines : List Str }
+joinPixelRow = \{ char, fg, bg, lines }, pixelRow, row ->
+
+    { rowStrs, prev } =
+        List.walk
+            pixelRow
+            { rowStrs: List.withCapacity (List.len pixelRow), prev: { char, fg, bg } }
+            joinPixels
+
+    line =
+        rowStrs
+        |> Str.joinWith "" # Set cursor at the start of line we want to draw
+        |> Str.withPrefix (ANSI.toStr (SetCursor { row: Num.toI32 (row + 1), col: 0 }))
+
+    { char: " ", fg: prev.fg, bg: prev.bg, lines: List.append lines line }
+
+joinPixels : { rowStrs : List Str, prev : Pixel }, Pixel -> { rowStrs : List Str, prev : Pixel }
+joinPixels = \{ rowStrs, prev }, curr ->
+    pixelStr =
+        # Prepend an ASCII escape ONLY if there is a change between pixels
+        curr.char
+        |> \str -> if curr.fg != prev.fg then Str.concat (ANSI.toStr (SetFgColor curr.fg)) str else str
+        |> \str -> if curr.bg != prev.bg then Str.concat (ANSI.toStr (SetBgColor curr.bg)) str else str
+
+    { rowStrs: List.append rowStrs pixelStr, prev: curr }
+
+drawBox : { r : I32, c : I32, w : I32, h : I32, fg ? Color, bg ? Color, char ? Str } -> DrawFn
+drawBox = \{ r, c, w, h, fg ? Gray, bg ? Default, char ? "#" } -> \_, { row, col } ->
+
+        startRow = r
+        endRow = (r + h)
+        startCol = c
+        endCol = (c + w)
+
+        if row == r && (col >= startCol && col < endCol) then
+            Ok { char, fg, bg } # TOP BORDER
+        else if row == (r + h - 1) && (col >= startCol && col < endCol) then
+            Ok { char, fg, bg } # BOTTOM BORDER
+        else if col == c && (row >= startRow && row < endRow) then
+            Ok { char, fg, bg } # LEFT BORDER
+        else if col == (c + w - 1) && (row >= startRow && row < endRow) then
+            Ok { char, fg, bg } # RIGHT BORDER
+        else
+            Err {}
+
+drawVLine : { r : I32, c : I32, len : I32, fg ? Color, bg ? Color, char ? Str } -> DrawFn
+drawVLine = \{ r, c, len, fg ? Default, bg ? Default, char ? "|" } -> \_, { row, col } ->
+        if col == c && (row >= r && row < (r + len)) then
+            Ok { char, fg, bg }
+        else
+            Err {}
+
+drawHLine : { r : I32, c : I32, len : I32, fg ? Color, bg ? Color, char ? Str } -> DrawFn
+drawHLine = \{ r, c, len, fg ? Default, bg ? Default, char ? "-" } -> \_, { row, col } ->
+        if row == r && (col >= c && col < (c + len)) then
+            Ok { char, fg, bg }
+        else
+            Err {}
+
+drawCursor : { fg ? Color, bg ? Color, char ? Str } -> DrawFn
+drawCursor = \{ fg ? Default, bg ? Gray, char ? " " } -> \cursor, { row, col } ->
+        if
+            (row == cursor.row) && (col == cursor.col)
+        then
+            Ok { char, fg, bg }
+        else
+            Err {}
+
+drawText : Str, { r : I32, c : I32, fg ? Color, bg ? Color } -> DrawFn
+drawText = \text, { r, c, fg ? Default, bg ? Default } -> \_, pixel ->
+        bytes = Str.toUtf8 text
+        len = text |> Str.toUtf8 |> List.len |> Num.toI32
+        if pixel.row == r && pixel.col >= c && pixel.col < (c + len) then
+            bytes
+            |> List.get (Num.toNat (pixel.col - c))
+            |> Result.try \b -> Str.fromUtf8 [b]
+            |> Result.map \char -> { char, fg, bg }
+            |> Result.mapErr \_ -> {}
+        else
+            Err {}
