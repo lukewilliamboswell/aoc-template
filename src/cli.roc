@@ -133,7 +133,7 @@ getTerminalSize : Task ScreenSize []
 getTerminalSize =
 
     # Move the cursor to bottom right corner of terminal
-    cmd = [SetCursor { row: 999, col: 999 }, GetCursor] |> List.map ANSI.toStr |> Str.joinWith ""
+    cmd = [SetCursor { row: 999, col: 999 }, GetCursor] |> List.map ANSI.colorToStr |> Str.joinWith ""
     {} <- Stdout.write cmd |> Task.await
 
     # Read the cursor position

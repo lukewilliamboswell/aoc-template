@@ -3,7 +3,7 @@ interface ANSI
     exposes [
         # Color.roc
         Color,
-        toStr,
+        colorToStr,
         withFg,
         withBg,
         withColor,
@@ -69,8 +69,8 @@ Color : [
 esc : Str
 esc = "\u(001b)"
 
-toStr : Code -> Str
-toStr = \code ->
+colorToStr : Code -> Str
+colorToStr = \code ->
     when code is
         Reset -> "\(esc)c"
         ClearScreen -> "\(esc)[3J"
@@ -132,15 +132,15 @@ fromBgColor = \color ->
 
 ## Adds foreground color formatting to a Str and then resets to Default
 withFg : Str, Color -> Str
-withFg = \str, color -> "\(toStr (SetFgColor color))\(str)\(esc)[0m"
+withFg = \str, color -> "\(colorToStr (SetFgColor color))\(str)\(esc)[0m"
 
 ## Adds background color formatting to a Str and then resets to Default
 withBg : Str, Color -> Str
-withBg = \str, color -> "\(toStr (SetBgColor color))\(str)\(esc)[0m"
+withBg = \str, color -> "\(colorToStr (SetBgColor color))\(str)\(esc)[0m"
 
 ## Adds color formatting to a Str and then resets to Default
 withColor : Str, { fg : Color, bg : Color } -> Str
-withColor = \str, colors -> "\(toStr (SetFgColor colors.fg))\(toStr (SetBgColor colors.bg))\(str)\(esc)[0m"
+withColor = \str, colors -> "\(colorToStr (SetFgColor colors.fg))\(colorToStr (SetBgColor colors.bg))\(str)\(esc)[0m"
 
 Key : [
     Up,
@@ -591,7 +591,7 @@ joinPixelRow = \{ char, fg, bg, lines }, pixelRow, row ->
     line =
         rowStrs
         |> Str.joinWith "" # Set cursor at the start of line we want to draw
-        |> Str.withPrefix (ANSI.toStr (SetCursor { row: Num.toI32 (row + 1), col: 0 }))
+        |> Str.withPrefix (colorToStr (SetCursor { row: Num.toI32 (row + 1), col: 0 }))
 
     { char: " ", fg: prev.fg, bg: prev.bg, lines: List.append lines line }
 
@@ -600,8 +600,8 @@ joinPixels = \{ rowStrs, prev }, curr ->
     pixelStr =
         # Prepend an ASCII escape ONLY if there is a change between pixels
         curr.char
-        |> \str -> if curr.fg != prev.fg then Str.concat (ANSI.toStr (SetFgColor curr.fg)) str else str
-        |> \str -> if curr.bg != prev.bg then Str.concat (ANSI.toStr (SetBgColor curr.bg)) str else str
+        |> \str -> if curr.fg != prev.fg then Str.concat (colorToStr (SetFgColor curr.fg)) str else str
+        |> \str -> if curr.bg != prev.bg then Str.concat (colorToStr (SetBgColor curr.bg)) str else str
 
     { rowStrs: List.append rowStrs pixelStr, prev: curr }
 
