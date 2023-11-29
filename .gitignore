@@ -1,2 +1,2 @@
-cli
-web
+src/cli
+src/web

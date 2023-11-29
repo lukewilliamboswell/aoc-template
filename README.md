@@ -8,12 +8,12 @@ Roc is a fast, friendly, and functional language which makes it great for solvin
 
 ## Command Line Interface App 
 
-Run the CLI app using `roc run cli.roc`
+Run the CLI app using `roc run src/cli.roc`
 
 ![example using CLI](example-cli.gif)
 
 ## Webserver App 
 
-Run the webserver using `roc run web.roc`, then navigate to `localhost:8000` in a browser
+Run the webserver using `roc run src/web.roc`, then navigate to `localhost:8000` in a browser
 
 ![example using Webserver](example-web.gif)
