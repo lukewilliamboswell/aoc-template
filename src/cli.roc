@@ -17,32 +17,19 @@ app "AoC"
 Model : {
     screen : ScreenSize,
     cursor : Position,
-    puzzles : List AoC.Solution,
+    solutions : List AoC.Solution,
     prevDraw : Utc,
     currDraw : Utc,
     inputs : List Input,
     debug : Bool,
-    state : [HomePage, ConfirmPage, RunSolution AoC.Solution, UserExited],
+    state : [HomePage, ConfirmPage AoC.Solution, RunSolution AoC.Solution, UserExited],
 }
-
-switchState : Model -> Model
-switchState = \model ->
-
-    isNothingSelected = 
-        mapSelected model 
-        |> List.keepOks \{selected} -> if selected then Ok {} else Err {}
-        |> List.isEmpty
-
-    when model.state is
-        # only switch to ConfirmPage if a puzzle is selected
-        HomePage if !isNothingSelected -> { model & state: ConfirmPage }
-        _ -> { model & state: HomePage }
 
 init : Model
 init = {
     cursor: { row: 3, col: 3 },
     screen: { width: 0, height: 0 },
-    puzzles: App.solutions,
+    solutions: App.solutions,
     prevDraw: Utc.fromMillisSinceEpoch 0,
     currDraw: Utc.fromMillisSinceEpoch 0,
     inputs: List.withCapacity 1000,
@@ -56,9 +43,9 @@ render = \state ->
     debug = if state.debug then debugScreen state else []
 
     when state.state is
-        ConfirmPage ->
+        ConfirmPage solution ->
             List.join [
-                confirmScreen state,
+                confirmScreen state solution,
                 debug,
             ]
 
@@ -74,22 +61,24 @@ main = runTask |> Task.onErr \_ -> Stdout.line "ERROR Something went wrong"
 runTask : Task {} []
 runTask =
 
-    # Enable Raw Mode
+    # TUI Dashboard
     {} <- Tty.enableRawMode |> Task.await
+    model <- Task.loop init runUILoop |> Task.await
 
-    # Run App Loop
-    model <- Task.loop init runLoop |> Task.await
-
-    dbg model.state
-
-    # Restore TTY Mode
+    # Restore terminal
+    # {} <- Stdout.write (ANSI.toStr (SetCursor {row : 0, col: 0})) |> Task.await
+    {} <- Stdout.write (ANSI.toStr Reset) |> Task.await
     {} <- Tty.disableRawMode |> Task.await
 
-    # Exit
-    Task.ok {}
+    # EXIT or RUN selected solution 
+    when model.state is 
+        RunSolution s -> runSolution s
+        _ ->
+            {} <- Stdout.line "Exiting... wishing you a very Merry Christmas!" |> Task.await
+            Task.ok {}
 
-runLoop : Model -> Task [Step Model, Done Model] []
-runLoop = \prevModel ->
+runUILoop : Model -> Task [Step Model, Done Model] []
+runUILoop = \prevModel ->
 
     # Get the time of this draw
     now <- Utc.now |> Task.await
@@ -116,8 +105,8 @@ runLoop = \prevModel ->
             (KeyPress Right, _) -> MoveCursor Right
             (KeyPress LowerD, _) -> ToggleDebug
             (KeyPress Enter, HomePage) -> UserToggledScreen
-            (KeyPress Enter, ConfirmPage) -> UserWantToRunSolution
-            (KeyPress Escape, ConfirmPage) -> UserToggledScreen
+            (KeyPress Enter, ConfirmPage s) -> UserWantToRunSolution s
+            (KeyPress Escape, ConfirmPage _) -> UserToggledScreen
             (KeyPress Escape, _) -> Exit
             (KeyPress _, _) -> Nothing
             (Unsupported _, _) -> Nothing
@@ -132,33 +121,39 @@ runLoop = \prevModel ->
         Exit -> Task.ok (Done {modelWithInput & state: UserExited})
         ToggleDebug -> Task.ok (Step { modelWithInput & debug: !modelWithInput.debug })
         MoveCursor direction -> Task.ok (Step (ANSI.updateCursor modelWithInput direction))
-        UserToggledScreen -> Task.ok (Step (switchState modelWithInput))
-        UserWantToRunSolution -> Task.ok (getSelectedAndExit modelWithInput)
+        UserWantToRunSolution s -> Task.ok (Done {modelWithInput & state: RunSolution s})
+        UserToggledScreen -> 
+            when modelWithInput.state is
+                HomePage -> 
+                    result = getSelected modelWithInput
 
-mapSelected : Model -> List {selected: Bool, puzzle: AoC.Solution, row: I32}
+                    when result is
+                        Ok s -> Task.ok (Step {modelWithInput & state: ConfirmPage s})
+                        Err NothingSelected -> Task.ok (Step modelWithInput)
+    
+                _ -> Task.ok (Step {modelWithInput & state: HomePage})
+        
+
+mapSelected : Model -> List {selected: Bool, s: AoC.Solution, row: I32}
 mapSelected = \model ->
-    puzzle, idx <- List.mapWithIndex model.puzzles
+    s, idx <- List.mapWithIndex model.solutions
                
     row = 3 + (Num.toI32 idx)
 
-    { selected: model.cursor.row == row, puzzle, row }
+    { selected: model.cursor.row == row, s, row }
 
-getSelectedAndExit : Model -> [Done Model, Step Model]
-getSelectedAndExit = \model -> 
-    result = 
-        mapSelected model
-        |> List.keepOks \{selected, puzzle} -> if selected then Ok puzzle else Err {}
-        |> List.first
-
-    when result is
-        Ok puzzle -> Done {model & state: RunSolution puzzle}
-        Err ListWasEmpty -> Step {model & state: HomePage} # unable to find selected puzzle 
+getSelected : Model -> Result AoC.Solution [NothingSelected]
+getSelected = \model -> 
+    mapSelected model
+    |> List.keepOks \{selected, s} -> if selected then Ok s else Err {}
+    |> List.first
+    |> Result.mapErr \_ -> NothingSelected
 
 getTerminalSize : Task ScreenSize []
 getTerminalSize =
 
     # Move the cursor to bottom right corner of terminal
-    cmd = [SetCursor { row: 999, col: 999 }, GetCursor] |> List.map ANSI.colorToStr |> Str.joinWith ""
+    cmd = [SetCursor { row: 999, col: 999 }, GetCursor] |> List.map ANSI.toStr |> Str.joinWith ""
     {} <- Stdout.write cmd |> Task.await
 
     # Read the cursor position
@@ -171,36 +166,36 @@ homeScreen = \model ->
     [
         [
             ANSI.drawCursor { bg: Green },
-            ANSI.drawText " Advent of Code Solutions" { r: 1, c: 1, fg: Green },
+            ANSI.drawText " Advent of Code" { r: 1, c: 1, fg: Green },
             ANSI.drawText "RUN" { r: 2, c: 11, fg: Blue },
             ANSI.drawText "QUIT" { r: 2, c: 26, fg: Red },
             ANSI.drawText " ENTER TO RUN, ESCAPE TO QUIT" { r: 2, c: 1, fg: Gray },
             ANSI.drawBox { r: 0, c: 0, w: model.screen.width, h: model.screen.height },
         ],
         (
-            { selected, puzzle, row } <- model |> mapSelected |> List.map 
-
-            title = puzzle.title
+            { selected, s, row } <- model |> mapSelected |> List.map 
 
             if selected then
-                ANSI.drawText " > \(title)" { r: row, c: 2, fg: Green }
+                ANSI.drawText " > \(AoC.display s)" { r: row, c: 2, fg: Green }
             else
-                ANSI.drawText " - \(title)" { r: row, c: 2, fg: Black }
+                ANSI.drawText " - \(AoC.display s)" { r: row, c: 2, fg: Black }
         )
     ]
     |> List.join
 
-confirmScreen : Model -> List DrawFn
-confirmScreen = \state -> [
-    ANSI.drawCursor { bg: Green },
-    ANSI.drawText " Solution for AoC 2022 Day 1" { r: 1, c: 1, fg: Green },
-    ANSI.drawText "CONFIRM" { r: 2, c: 11, fg: Blue },
-    ANSI.drawText "RETURN" { r: 2, c: 30, fg: Red },
-    ANSI.drawText " ENTER TO CONFIRM, ESCAPE TO RETURN" { r: 2, c: 1, fg: Gray },
-    ANSI.drawText " Part 1:" { r: 3, c: 1, fg: Black },
-    ANSI.drawText " Part 2:" { r: 4, c: 1, fg: Black },
-    ANSI.drawBox { r: 0, c: 0, w: state.screen.width, h: state.screen.height },
-]
+confirmScreen : Model, AoC.Solution -> List DrawFn
+confirmScreen = \state, solution -> 
+    [
+        ANSI.drawCursor { bg: Green },
+        ANSI.drawText " Would you like to run \(AoC.display solution)?" { r: 1, c: 1, fg: Yellow },
+        ANSI.drawText "CONFIRM" { r: 2, c: 11, fg: Blue },
+        ANSI.drawText "RETURN" { r: 2, c: 30, fg: Red },
+        ANSI.drawText " ENTER TO CONFIRM, ESCAPE TO RETURN" { r: 2, c: 1, fg: Gray },
+        ANSI.drawText " title: \(solution.title)" { r: 3, c: 1 },
+        ANSI.drawText " year: \(Num.toStr solution.year)" { r: 4, c: 1 },
+        ANSI.drawText " day: \(Num.toStr solution.day)" { r: 5, c: 1 },
+        ANSI.drawBox { r: 0, c: 0, w: state.screen.width, h: state.screen.height },
+    ]
 
 debugScreen : Model -> List DrawFn
 debugScreen = \state ->
@@ -223,49 +218,66 @@ debugScreen = \state ->
         ANSI.drawHLine { c: 1, r: state.screen.height // 2, len: state.screen.width, fg: Gray },
     ]
 
-    #  { year : U64, day : U64, puzzle : [Part1, Part2] } -> Result Str [NotImplemented, Error Str]
-# runSolution : Result {} []
-# runSolution = 
-#     when App.solvePuzzle { year: 2022, day: 1, puzzle: Part1 } is
-#         Ok answer ->
-#             header = Color.fg "Advent of Code Solution" Green
-#             year = Color.fg "\(Num.toStr 2022)" Green
-#             day = Color.fg "\(Num.toStr 1)" Green
-#             part = Color.fg "1" Green
-#             time = Color.fg "245ms" Green
+runSolution : AoC.Solution -> Task {} []
+runSolution = \solution ->
 
-#             """
+    start <- Utc.now |> Task.await
 
-#             --- \(header)
-#             year: \(year)
-#             day: \(day)
-#             part: \(part)
-#             time: \(time)
-#             answer:
+    {} <- Stdout.write (ANSI.withFg "Running Part 1..." Gray) |> Task.await
 
-#             \(answer)
-#             ---
-#             """
-#             |> Stdout.line
+    partOneResult = solution.part1 {}
 
-#         Err NotImplemented ->
-#             [
-#                 Color.fg "Advent of Code" Green,
-#                 ":",
-#                 Color.fg "\(Num.toStr 2022)-\(Num.toStr 1)-Part 1" Blue,
-#                 ":",
-#                 Color.fg "NOT IMPLEMENTED" Red,
-#             ]
-#             |> Str.joinWith ""
-#             |> Stdout.line
+    mid <- Utc.now |> Task.await
 
-#         Err (Error msg) ->
-#             [
-#                 Color.fg "Advent of Code" Green,
-#                 ":",
-#                 Color.fg "\(Num.toStr 2022)-\(Num.toStr 1)-Part 1" Blue,
-#                 ":",
-#                 Color.fg "ERROR \(msg)" Red,
-#             ]
-#             |> Str.joinWith ""
-#             |> Stdout.line
+    {} <- Stdout.write (ANSI.withFg "done\nRunning Part 2..." Gray) |> Task.await
+
+    partTwoResult = solution.part2 {}
+
+    end <- Utc.now |> Task.await
+
+    {} <- Stdout.write (ANSI.withFg "done\n" Gray) |> Task.await
+
+    header = ANSI.withFg "Solution for \(AoC.display solution)" Blue
+    year = ANSI.withFg "\(Num.toStr solution.year)" Blue
+    day = ANSI.withFg "\(Num.toStr solution.day)" Blue
+    part1 = solutionResultToStr partOneResult
+    part2 = solutionResultToStr partTwoResult
+    part1Time = ANSI.withFg (deltaToStr start mid) Blue
+    part2Time = ANSI.withFg (deltaToStr mid end) Blue
+    totalTime = ANSI.withFg (deltaToStr start end) Blue
+    
+    """
+    ---------------------------------
+    \(header)
+    ---------------------------------
+    year: \(year)
+    day: \(day)
+    total time: \(totalTime)
+
+    Part 1 calculated in \(part1Time)
+    ---------------------------------
+    \(part1)
+
+    Part 2 calculated in \(part2Time)
+    ---------------------------------
+    \(part2)
+
+    """
+    |> Stdout.line
+
+solutionResultToStr : Result Str [NotImplemented, Error Str] -> Str
+solutionResultToStr = \result ->
+    when result is
+        Ok answer -> answer
+        Err NotImplemented -> "TODO - NOT YET IMPLEMENTED"
+        Err (Error msg) -> "ERROR \(msg)"
+
+deltaToStr : Utc, Utc -> Str
+deltaToStr = \start, end ->
+   millis = Utc.deltaAsMillis start end 
+
+   if millis == 0 then
+       "<0 ms"
+   else
+    Num.toStr millis
+   

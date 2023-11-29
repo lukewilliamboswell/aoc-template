@@ -1,17 +1,18 @@
 # TODO move this back into [lukewilliamboswell/roc-ansi](https://github.com/lukewilliamboswell/roc-ansi)
+# for now this is quicker to iterate on designs
 interface ANSI
     exposes [
-        # Color.roc
+        # ANSI
+        Code,
+        toStr,
+        
+        # Color
         Color,
-        colorToStr,
         withFg,
         withBg,
         withColor,
 
-        # Code.roc
-        Code,
-
-        # TUI.roc
+        # TUI
         DrawFn,
         Pixel,
         ScreenSize,
@@ -38,6 +39,9 @@ Code : [
     SetCursor { row : I32, col : I32 },
     SetFgColor Color,
     SetBgColor Color,
+    EraseToEnd,
+    EraseFromStart,
+    EraseLine,
     MoveCursorHome,
     MoveCursor [Up, Down, Left, Right] I32,
     MoveCursorNextLine,
@@ -69,8 +73,8 @@ Color : [
 esc : Str
 esc = "\u(001b)"
 
-colorToStr : Code -> Str
-colorToStr = \code ->
+toStr : Code -> Str
+toStr = \code ->
     when code is
         Reset -> "\(esc)c"
         ClearScreen -> "\(esc)[3J"
@@ -78,6 +82,9 @@ colorToStr = \code ->
         SetCursor { row, col } -> "\(esc)[\(Num.toStr row);\(Num.toStr col)H"
         SetFgColor color -> fromFgColor color
         SetBgColor color -> fromBgColor color
+        EraseToEnd -> "\(esc)[0K"
+        EraseFromStart -> "\(esc)[1K"
+        EraseLine -> "\(esc)[2K"
         MoveCursorHome -> "\(esc)[H"
         MoveCursorNextLine -> "\(esc)[1E"
         MoveCursorPrevLine -> "\(esc)[1F"
@@ -132,15 +139,15 @@ fromBgColor = \color ->
 
 ## Adds foreground color formatting to a Str and then resets to Default
 withFg : Str, Color -> Str
-withFg = \str, color -> "\(colorToStr (SetFgColor color))\(str)\(esc)[0m"
+withFg = \str, color -> "\(toStr (SetFgColor color))\(str)\(esc)[0m"
 
 ## Adds background color formatting to a Str and then resets to Default
 withBg : Str, Color -> Str
-withBg = \str, color -> "\(colorToStr (SetBgColor color))\(str)\(esc)[0m"
+withBg = \str, color -> "\(toStr (SetBgColor color))\(str)\(esc)[0m"
 
 ## Adds color formatting to a Str and then resets to Default
 withColor : Str, { fg : Color, bg : Color } -> Str
-withColor = \str, colors -> "\(colorToStr (SetFgColor colors.fg))\(colorToStr (SetBgColor colors.bg))\(str)\(esc)[0m"
+withColor = \str, colors -> "\(toStr (SetFgColor colors.fg))\(toStr (SetBgColor colors.bg))\(str)\(esc)[0m"
 
 Key : [
     Up,
@@ -476,8 +483,6 @@ keyToStr = \key ->
         Number8 -> "8"
         Number9 -> "9"
 
-# TODO MOVE INTO TUI.roc
-
 ScreenSize : { width : I32, height : I32 }
 Position : { row : I32, col : I32 }
 DrawFn : Position, Position -> Result Pixel {}
@@ -591,7 +596,7 @@ joinPixelRow = \{ char, fg, bg, lines }, pixelRow, row ->
     line =
         rowStrs
         |> Str.joinWith "" # Set cursor at the start of line we want to draw
-        |> Str.withPrefix (colorToStr (SetCursor { row: Num.toI32 (row + 1), col: 0 }))
+        |> Str.withPrefix (toStr (SetCursor { row: Num.toI32 (row + 1), col: 0 }))
 
     { char: " ", fg: prev.fg, bg: prev.bg, lines: List.append lines line }
 
@@ -600,8 +605,8 @@ joinPixels = \{ rowStrs, prev }, curr ->
     pixelStr =
         # Prepend an ASCII escape ONLY if there is a change between pixels
         curr.char
-        |> \str -> if curr.fg != prev.fg then Str.concat (colorToStr (SetFgColor curr.fg)) str else str
-        |> \str -> if curr.bg != prev.bg then Str.concat (colorToStr (SetBgColor curr.bg)) str else str
+        |> \str -> if curr.fg != prev.fg then Str.concat (toStr (SetFgColor curr.fg)) str else str
+        |> \str -> if curr.bg != prev.bg then Str.concat (toStr (SetBgColor curr.bg)) str else str
 
     { rowStrs: List.append rowStrs pixelStr, prev: curr }
 

@@ -3,7 +3,7 @@ interface S2022.D01
     imports ["2022-01.txt" as input : Str, AoC]
 
 solution : AoC.Solution
-solution = { year: 2022, day: 1, title: "2022 Day 1: Calorie Counting", part1, part2 }
+solution = { year: 2022, day: 1, title: "Calorie Counting", part1, part2 }
 
 elfCalories = parse input
 
@@ -14,7 +14,7 @@ part1 = \_ ->
     |> List.sortDesc
     |> List.first
     |> Result.mapErr \ListWasEmpty -> Error "list was empty, nothin in inventory"
-    |> Result.map \highestCals -> "Highest calories is \(Num.toStr highestCals)"
+    |> Result.map \highestCals -> "The Elf with the highest calories has \(Num.toStr highestCals) kCal"
 
 part2 : {} -> Result Str [NotImplemented, Error Str]
 part2 = \_ -> Err NotImplemented

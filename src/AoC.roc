@@ -1,5 +1,5 @@
 interface AoC
-    exposes [Solution]
+    exposes [Solution, display]
     imports []
 
 Solution : {
@@ -9,3 +9,7 @@ Solution : {
     part1 : {} -> Result Str [NotImplemented, Error Str],
     part2 : {} -> Result Str [NotImplemented, Error Str],
 }
+
+display : Solution -> Str
+display = \s -> "AoC \(Num.toStr s.year)-\(Num.toStr s.day): \(s.title)"
+

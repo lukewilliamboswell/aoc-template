@@ -3,7 +3,7 @@ interface S2022.D03
     imports [AoC]
 
 solution : AoC.Solution
-solution = { year: 2022, day: 3, title: "2022 Day 3: Rucksack Reorganization", part1, part2 }
+solution = { year: 2022, day: 3, title: "Rucksack Reorganization", part1, part2 }
 
 part1 : {} -> Result Str [NotImplemented, Error Str]
 part1 = \_ -> Err NotImplemented
