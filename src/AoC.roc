@@ -1,5 +1,5 @@
 interface AoC
-    exposes [Solution, display]
+    exposes [Solution, display, filterByYearDay, getDescription]
     imports []
 
 Solution : {
@@ -11,5 +11,20 @@ Solution : {
 }
 
 display : Solution -> Str
-display = \s -> "AoC \(Num.toStr s.year)-\(Num.toStr s.day): \(s.title)"
+display = \s -> "\(Num.toStr s.year) Day \(Num.toStr s.day): \(s.title)"
 
+getDescription : List Solution, U64, U64 -> Result Str [NotAvailable]
+getDescription = \solutions, year, day ->
+    solutions 
+    |> List.keepOks (filterByYearDay year day) 
+    |> List.first
+    |> Result.mapErr \_ -> NotAvailable
+    |> Result.map display
+
+filterByYearDay : U64, U64 -> (AoC.Solution -> Result AoC.Solution [DoesNotMatch])
+filterByYearDay = \year, day ->
+    \sol ->
+        if sol.year == year && sol.day == day then
+            Ok sol
+        else
+            Err DoesNotMatch

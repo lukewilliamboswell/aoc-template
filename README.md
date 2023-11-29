@@ -4,9 +4,13 @@ A template for AoC puzzle solutions using [Roc](https://www.roc-lang.org) 🤘
 
 Roc is a [fast](https://www.roc-lang.org/fast), [friendly](https://www.roc-lang.org/friendly), and [functional](https://www.roc-lang.org/functional) language which makes it ideal for this use case. 
 
+The below apps (CLI, TUI, and Web) are using the same solution code, and are compiled using different Roc [platforms](https://www.roc-lang.org/platforms) for a different experience.
+
+The CLI app it useful for quickly running a solution and seeing the answer in the terminal. The TUI app provides a more featureful graphical interface for selecting a solution to run, and the Web app is designed to provide an interactive experience for running your solutions using a browser.
+
 ## Setup
 
-Clone this repository
+Clone this repository, ensure you have Roc cli [installed](https://www.roc-lang.org/install).
 
 ## CLI App 
 
@@ -14,7 +18,15 @@ Compile fast with `roc dev src/cli.roc`
 
 Optimized runtime with `roc build --optimize src/cli.roc && src/cli`
 
-![example using CLI](example-cli.gif)
+![example using CLI](example-cli.png)
+
+## TUI App 
+
+Compile fast with `roc dev src/tui.roc`
+
+Optimized runtime with `roc build --optimize src/tui.roc && src/tui`
+
+![example using CLI](example-tui.gif)
 
 ## Web App 🚧 **Work In Progress** 🚧
 

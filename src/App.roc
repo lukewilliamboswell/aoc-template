@@ -25,20 +25,12 @@ solutions =
 solvePuzzle : { year : U64, day : U64, puzzle : [Part1, Part2] } -> Result Str [NotImplemented, Error Str]
 solvePuzzle = \selection ->
 
-    result = solutions |> List.keepOks (filterSolutions selection.year selection.day) |> List.first
+    result = solutions |> List.keepOks (AoC.filterByYearDay selection.year selection.day) |> List.first
 
     when (selection.puzzle, result) is
         (Part1, Ok solution) -> solution.part1 {}
         (Part2, Ok solution) -> solution.part2 {}
-        (_, Err ListWasEmpty) -> Err (Error "Selected puzzle not available")
-
-filterSolutions : U64, U64 -> (AoC.Solution -> Result AoC.Solution [DoesNotMatch])
-filterSolutions = \year, day ->
-    \sol ->
-        if sol.year == year && sol.day == day then
-            Ok sol
-        else
-            Err DoesNotMatch
+        (_, Err ListWasEmpty) -> Err NotImplemented
 
 sortByYearAndDay : AoC.Solution, AoC.Solution -> [LT, EQ, GT]
 sortByYearAndDay = \first, second -> 
