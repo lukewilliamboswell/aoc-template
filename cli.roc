@@ -9,14 +9,15 @@ app "AoC"
         pf.Task.{ Task },
         ANSI.{ Color, Input, ScreenSize, Position, DrawFn },
         pf.Utc.{ Utc },
-        # App,
+        App,
+        AoC,
     ]
     provides [main, debugScreen] to pf
 
 Model : {
     screen : ScreenSize,
     cursor : Position,
-    puzzles : List Str,
+    puzzles : List AoC.Solution,
     prevDraw : Utc,
     currDraw : Utc,
     inputs : List Input,
@@ -34,11 +35,7 @@ init : Model
 init = {
     cursor: { row: 3, col: 3 },
     screen: { width: 0, height: 0 },
-    puzzles: [
-        "2022 Day 1: Calorie Counting",
-        "2022 Day 2: Rock Paper Scissors",
-        "2022 Day 3: Rucksack Reorganization",
-    ],
+    puzzles: App.solutions,
     prevDraw: Utc.fromMillisSinceEpoch 0,
     currDraw: Utc.fromMillisSinceEpoch 0,
     inputs: List.withCapacity 1000,
@@ -82,51 +79,6 @@ runTask =
     # Exit
     Task.ok {}
 
-# TODO ADD PUZZLE STUFF BACK IN
-# when App.solvePuzzle { year: 2022, day: 1, puzzle: Part1 } is
-#     Ok answer ->
-#         header = Color.fg "Advent of Code Solution" Green
-#         year = Color.fg "\(Num.toStr 2022)" Green
-#         day = Color.fg "\(Num.toStr 1)" Green
-#         part = Color.fg "1" Green
-#         time = Color.fg "245ms" Green
-
-#         """
-
-#         --- \(header)
-#         year: \(year)
-#         day: \(day)
-#         part: \(part)
-#         time: \(time)
-#         answer:
-
-#         \(answer)
-#         ---
-#         """
-#         |> Stdout.line
-
-#     Err NotImplemented ->
-#         [
-#             Color.fg "Advent of Code" Green,
-#             ":",
-#             Color.fg "\(Num.toStr 2022)-\(Num.toStr 1)-Part 1" Blue,
-#             ":",
-#             Color.fg "NOT IMPLEMENTED" Red,
-#         ]
-#         |> Str.joinWith ""
-#         |> Stdout.line
-
-#     Err (Error msg) ->
-#         [
-#             Color.fg "Advent of Code" Green,
-#             ":",
-#             Color.fg "\(Num.toStr 2022)-\(Num.toStr 1)-Part 1" Blue,
-#             ":",
-#             Color.fg "ERROR \(msg)" Red,
-#         ]
-#         |> Str.joinWith ""
-#         |> Stdout.line
-
 runLoop : Model -> Task [Step Model, Done Model] []
 runLoop = \prevState ->
 
@@ -166,10 +118,16 @@ runLoop = \prevState ->
     # Action command
     when command is
         Nothing -> Task.ok (Step stateWithInput)
-        RunSolution -> Task.ok (Step (switchState stateWithInput))
+        Exit -> Task.ok (Done stateWithInput)
         ToggleDebug -> Task.ok (Step { stateWithInput & debug: !stateWithInput.debug })
         MoveCursor direction -> Task.ok (Step (ANSI.updateCursor stateWithInput direction))
-        Exit -> Task.ok (Done stateWithInput)
+        RunSolution -> 
+
+
+
+            # Run the solution
+
+            Task.ok (Step (switchState stateWithInput))
 
 getTerminalSize : Task ScreenSize []
 getTerminalSize =
@@ -192,13 +150,13 @@ homeScreen = \state ->
             ANSI.drawText " ENTER TO RUN, ESCAPE TO QUIT" { r: 2, c: 1, fg: Gray },
             ANSI.drawBox { r: 0, c: 0, w: state.screen.width, h: state.screen.height },
         ],
-        List.mapWithIndex state.puzzles \puzzleStr, idx ->
+        List.mapWithIndex state.puzzles \puzzle, idx ->
             row = 3 + (Num.toI32 idx)
             if (state.cursor.row == row) then
                 # Selected puzzle
-                ANSI.drawText " - \(puzzleStr)" { r: row, c: 2, fg: Green }
+                ANSI.drawText " - \(puzzle.title)" { r: row, c: 2, fg: Green }
             else
-                ANSI.drawText " - \(puzzleStr)" { r: row, c: 2, fg: Black },
+                ANSI.drawText " - \(puzzle.title)" { r: row, c: 2, fg: Black },
     ]
     |> List.join
 
@@ -232,3 +190,50 @@ debugScreen = \state ->
         ANSI.drawVLine { r: 1, c: state.screen.width // 2, len: state.screen.height, fg: Gray },
         ANSI.drawHLine { c: 1, r: state.screen.height // 2, len: state.screen.width, fg: Gray },
     ]
+
+    #  { year : U64, day : U64, puzzle : [Part1, Part2] } -> Result Str [NotImplemented, Error Str]
+# runSolution : Result {} []
+# runSolution = 
+#     when App.solvePuzzle { year: 2022, day: 1, puzzle: Part1 } is
+#         Ok answer ->
+#             header = Color.fg "Advent of Code Solution" Green
+#             year = Color.fg "\(Num.toStr 2022)" Green
+#             day = Color.fg "\(Num.toStr 1)" Green
+#             part = Color.fg "1" Green
+#             time = Color.fg "245ms" Green
+
+#             """
+
+#             --- \(header)
+#             year: \(year)
+#             day: \(day)
+#             part: \(part)
+#             time: \(time)
+#             answer:
+
+#             \(answer)
+#             ---
+#             """
+#             |> Stdout.line
+
+#         Err NotImplemented ->
+#             [
+#                 Color.fg "Advent of Code" Green,
+#                 ":",
+#                 Color.fg "\(Num.toStr 2022)-\(Num.toStr 1)-Part 1" Blue,
+#                 ":",
+#                 Color.fg "NOT IMPLEMENTED" Red,
+#             ]
+#             |> Str.joinWith ""
+#             |> Stdout.line
+
+#         Err (Error msg) ->
+#             [
+#                 Color.fg "Advent of Code" Green,
+#                 ":",
+#                 Color.fg "\(Num.toStr 2022)-\(Num.toStr 1)-Part 1" Blue,
+#                 ":",
+#                 Color.fg "ERROR \(msg)" Red,
+#             ]
+#             |> Str.joinWith ""
+#             |> Stdout.line

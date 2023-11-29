@@ -1,9 +1,9 @@
-interface S2022D01
+interface S2022.D01
     exposes [solution]
-    imports ["input/2022-01.txt" as input : Str, AoC]
+    imports ["2022-01.txt" as input : Str, AoC]
 
 solution : AoC.Solution
-solution = { year: 2022, day: 1, part1, part2 }
+solution = { year: 2022, day: 1, title: "2022 Day 1: Calorie Counting", part1, part2 }
 
 elfCalories = parse input
 

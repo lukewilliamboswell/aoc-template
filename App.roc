@@ -1,15 +1,26 @@
 interface App
-    exposes [solvePuzzle]
+    exposes [
+        solutions,
+        solvePuzzle,
+    ]
     imports [
         AoC,
-        S2022D01,
+        S2022.D01,
+        S2022.D02,
+        S2022.D03,
+        S2023.D01,
     ]
 
 ## Export a list of the solutions included in this app
 solutions : List AoC.Solution
-solutions = [
-    S2022D01.solution,
-]
+solutions = 
+    [
+        S2022.D01.solution,
+        S2023.D01.solution,
+        S2022.D03.solution,
+        S2022.D02.solution,
+    ]
+    |> List.sortWith sortByYearAndDay
 
 solvePuzzle : { year : U64, day : U64, puzzle : [Part1, Part2] } -> Result Str [NotImplemented, Error Str]
 solvePuzzle = \selection ->
@@ -28,3 +39,16 @@ filterSolutions = \year, day ->
             Ok sol
         else
             Err DoesNotMatch
+
+sortByYearAndDay : AoC.Solution, AoC.Solution -> [LT, EQ, GT]
+sortByYearAndDay = \first, second -> 
+    if first.year < second.year then 
+        GT
+    else if first.year > second.year then 
+        LT
+    else if first.day < second.day then 
+        GT
+    else if first.day > second.day then 
+        LT
+    else 
+        EQ
