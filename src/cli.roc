@@ -66,13 +66,13 @@ runTask =
     model <- Task.loop init runUILoop |> Task.await
 
     # Restore terminal
-    # {} <- Stdout.write (ANSI.toStr (SetCursor {row : 0, col: 0})) |> Task.await
     {} <- Stdout.write (ANSI.toStr Reset) |> Task.await
     {} <- Tty.disableRawMode |> Task.await
 
     # EXIT or RUN selected solution 
     when model.state is 
-        RunSolution s -> runSolution s
+        RunSolution s -> 
+            runSolution s
         _ ->
             {} <- Stdout.line "Exiting... wishing you a very Merry Christmas!" |> Task.await
             Task.ok {}
