@@ -72,7 +72,6 @@ The solutions for CLI, TUI and Web are common to all three applications. They ar
 To add another you can copy a previous solution, and include it in the `solutions` variable in `src/App.roc`.
 
 ```elm
-## Export a list of the solutions included in this app
 solutions : List AoC.Solution
 solutions = 
     [
