@@ -1,52 +1,85 @@
 # Advent of Code Template 
 
-A template for AoC puzzle solutions using [Roc](https://www.roc-lang.org) 🤘
+A template for AoC using [Roc](https://www.roc-lang.org) 🤘
 
-Roc is a [fast](https://www.roc-lang.org/fast), [friendly](https://www.roc-lang.org/friendly), and [functional](https://www.roc-lang.org/functional) language which makes it ideal for this use case. 
+Roc is a [fast](https://www.roc-lang.org/fast), [friendly](https://www.roc-lang.org/friendly), and [functional](https://www.roc-lang.org/functional) language which makes it ideal for AoC.  
 
-The below apps (CLI, TUI, and Web) are using the same solution code, and are compiled using different Roc [platforms](https://www.roc-lang.org/platforms) for a different experience.
+All you need to get started is the `roc` executable. [Installing it](https://www.roc-lang.org/install) doesn't take long, and it ships with testing (`roc test`) and code formatting (`roc format`) already included.
 
-The CLI app it useful for quickly running a solution and seeing the answer in the terminal. The TUI app provides a more featureful graphical interface for selecting a solution to run, and the Web app is designed to provide an interactive experience for running your solutions using a browser.
+The simplest setup is to make each day its own `.roc` file. 
 
-## Setup
+For example, here's all you need for `day1`.
 
-Clone this repository, ensure you have Roc cli [installed](https://www.roc-lang.org/install).
+## day1.roc
 
-## CLI App 
+```elm
+app "AoC"
+    packages {
+        pf: "https://github.com/roc-lang/basic-cli/releases/download/0.6.2/c7T4Hp8bAdWz3r9ZrhboBzibCjJag8d0IP_ljb42yVc.tar.br",
+    }
+    imports [pf.Stdout, pf.Task.{Task}, "day-1-input.txt" as input : Str]
+    provides [main] to pf
 
-Compile fast with `roc dev src/cli.roc`
+main : Task {} *
+main = Stdout.line part1
 
-Optimized runtime with `roc build --optimize src/cli.roc && src/cli`
+part1 : Str
+part1 =
+    elfCalories
+    |> List.map List.sum
+    |> List.sortDesc
+    |> List.first
+    |> Result.map \highestCals -> "The Elf with the highest calories has \(Num.toStr highestCals) kCal"
+    |> Result.withDefault "Ooops there are no rucksacks to count"
 
-![example using CLI](example-cli.png)
+elfCalories : List (List U64)
+elfCalories = parse input
 
-## TUI App 
+parse : Str -> List (List U64)
+parse = \str ->
+    inventory <- str |> Str.split "\n\n" |> List.map
 
-Compile fast with `roc dev src/tui.roc`
+    inventory |> Str.split "\n" |> List.keepOks Str.toU64
+```
 
-Optimized runtime with `roc build --optimize src/tui.roc && src/tui`
+You can run your solution from the terminal in same directory as `day1.roc` with:
 
-![example using CLI](example-tui.gif)
+```sh
+$ roc dev day1.roc
+```
 
-## Web App 🚧 **Work In Progress** 🚧
+If you want to do an optimized build, run `roc run --optimize day1.roc` instead. This will take longer to build, but then the program will run faster.
 
-Run the webserver using `roc run src/web.roc`, then navigate to `localhost:8000` in a browser
+To run tests, use `roc test day1.roc`
 
-![example using Webserver](example-web.gif)
+```sh
+$ roc test day1.roc 
 
-## Adding Solutions
+0 failed and 1 passed in 277 ms.
+```
 
-The solutions are located in a subfolder like `src/S2023/D01.roc`. To add another you can copy a previous solution, and then add it to the app by updating the following variable in the `src/App.roc` file.
+This is all you need to solve AoC in Roc. 
 
-```haskell
+If you'd like additional features that's specific to AoC, then this repository has several to choose from:
+- A CLI App which prints the results to stdout `roc src/cli.roc`
+- A TUI App with a graphical menu to choose a solution to run `roc src/tui.roc`
+- A Web App for sharing your AoC solutions with your friends `roc src/web.roc`
+
+## Optional: adding a solution for CLI, TUI and Web Apps
+
+The solutions for CLI, TUI and Web are commong to all three applications. The are located in subfolders like `src/S2023/D01.roc`. 
+
+To add another you can copy a previous solution, and include it in the `solutions` variable in `src/App.roc`.
+
+```elm
 ## Export a list of the solutions included in this app
 solutions : List AoC.Solution
 solutions = 
     [
         S2022.D01.solution,
-        S2023.D01.solution,
-        S2022.D03.solution,
         S2022.D02.solution,
+        S2022.D03.solution,
+        S2023.D01.solution,
     ]
     |> List.sortWith sortByYearAndDay
 ```
