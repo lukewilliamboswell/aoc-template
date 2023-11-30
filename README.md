@@ -42,7 +42,7 @@ parse = \str ->
     inventory |> Str.split "\n" |> List.keepOks Str.toU64
 ```
 
-You can run your solution from the terminal in same directory as `day1.roc` with:
+You can run your solution from the terminal in the same directory as `day1.roc` with:
 
 ```sh
 $ roc dev day1.roc
@@ -60,14 +60,9 @@ $ roc test day1.roc
 
 This is all you need to solve AoC in Roc! 🎉 
 
-If you'd like additional features that's specific to AoC, then this repository has several to choose from:
-- A CLI App which prints the results to stdout `roc run src/cli.roc -- 2022 1`
-- A TUI App with a graphical menu to choose a solution to run `roc src/tui.roc`
-- A Web App for sharing your AoC solutions with your friends `roc src/web.roc`
-
 ## Optional: adding a solution for CLI, TUI and Web Apps
 
-The solutions for CLI, TUI and Web are common to all three applications. The are located in subfolders like `src/S2023/D01.roc`. 
+The solutions for CLI, TUI and Web are common to all three applications. They are located in subfolders like `src/S2023/D01.roc`. 
 
 To add another you can copy a previous solution, and include it in the `solutions` variable in `src/App.roc`.
 
@@ -83,3 +78,11 @@ solutions =
     ]
     |> List.sortWith sortByYearAndDay
 ```
+
+## AoC Specific Features
+
+If you'd like additional features that are specific to AoC, then this repository has several to choose from:
+- A CLI App that prints the results to stdout `roc run src/cli.roc -- 2022 1`
+- A TUI App with a graphical menu to choose a solution to run `roc src/tui.roc`
+- A Web App for sharing your AoC solutions with your friends `roc src/web.roc`
+
