@@ -50,7 +50,7 @@ $ roc dev day1.roc
 
 If you want to do an optimized build, run `roc run --optimize day1.roc` instead. This will take longer to build, but then the program will run faster.
 
-To run tests, use `roc test day1.roc`
+To run tests, use:
 
 ```sh
 $ roc test day1.roc 
@@ -58,16 +58,16 @@ $ roc test day1.roc
 0 failed and 1 passed in 277 ms.
 ```
 
-This is all you need to solve AoC in Roc. 
+This is all you need to solve AoC in Roc! 🎉 
 
 If you'd like additional features that's specific to AoC, then this repository has several to choose from:
-- A CLI App which prints the results to stdout `roc src/cli.roc`
+- A CLI App which prints the results to stdout `roc run src/cli.roc -- 2022 1`
 - A TUI App with a graphical menu to choose a solution to run `roc src/tui.roc`
 - A Web App for sharing your AoC solutions with your friends `roc src/web.roc`
 
 ## Optional: adding a solution for CLI, TUI and Web Apps
 
-The solutions for CLI, TUI and Web are commong to all three applications. The are located in subfolders like `src/S2023/D01.roc`. 
+The solutions for CLI, TUI and Web are common to all three applications. The are located in subfolders like `src/S2023/D01.roc`. 
 
 To add another you can copy a previous solution, and include it in the `solutions` variable in `src/App.roc`.
 
