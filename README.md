@@ -60,7 +60,12 @@ $ roc test day1.roc
 
 This is all you need to solve AoC in Roc! 🎉 
 
-## Optional: adding a solution for CLI, TUI and Web Apps
+## Optional: AoC CLI, TUI and Web Apps
+
+If you'd like additional features that are specific to AoC, then this repository has several to choose from:
+- A CLI App that prints the results to stdout `roc run src/cli.roc -- 2022 1`
+- A TUI App with a graphical menu to choose a solution to run `roc src/tui.roc`
+- A Web App for sharing your AoC solutions with your friends `roc src/web.roc`
 
 The solutions for CLI, TUI and Web are common to all three applications. They are located in subfolders like `src/S2023/D01.roc`. 
 
@@ -78,11 +83,3 @@ solutions =
     ]
     |> List.sortWith sortByYearAndDay
 ```
-
-## AoC Specific Features
-
-If you'd like additional features that are specific to AoC, then this repository has several to choose from:
-- A CLI App that prints the results to stdout `roc run src/cli.roc -- 2022 1`
-- A TUI App with a graphical menu to choose a solution to run `roc src/tui.roc`
-- A Web App for sharing your AoC solutions with your friends `roc src/web.roc`
-
