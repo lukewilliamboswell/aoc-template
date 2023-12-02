@@ -60,11 +60,11 @@ runTask =
     day: \(day)
     total time: \(totalTime)
 
-    Part 1 calculated in \(part1Time)
+    Part 1 calculated in \(part1Time) ms
     ---------------------------------
     \(part1)
 
-    Part 2 calculated in \(part2Time)
+    Part 2 calculated in \(part2Time) ms
     ---------------------------------
     \(part2)
 
@@ -95,6 +95,6 @@ deltaToStr = \start, end ->
     millis = Utc.deltaAsMillis start end
 
     if millis == 0 then
-        "<0 ms"
+        "<0"
     else
         Num.toStr millis
