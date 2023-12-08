@@ -43,9 +43,7 @@ runTask =
     {} <- Stdout.write (ANSI.withFg "done\n" Gray) |> Task.await
 
     description = AoC.getDescription App.solutions yearArg dayArg |> Result.withDefault "unreachable"
-    header = ANSI.withFg "Solution for \(description)" Blue
-    year = ANSI.withFg "\(Num.toStr yearArg)" Blue
-    day = ANSI.withFg "\(Num.toStr dayArg)" Blue
+    header = ANSI.withFg "\(description)" Blue
     part1 = solutionResultToStr partOneResult
     part2 = solutionResultToStr partTwoResult
     part1Time = ANSI.withFg (deltaToStr start mid) Blue
@@ -53,21 +51,14 @@ runTask =
     totalTime = ANSI.withFg (deltaToStr start end) Blue
 
     """
-    ---------------------------------
-    \(header)
-    ---------------------------------
-    year: \(year)
-    day: \(day)
-    total time: \(totalTime)
-
-    Part 1 calculated in \(part1Time) ms
-    ---------------------------------
+    \(header) completed in \(totalTime) ms
+    --------------------------------------
+    Part 1 took \(part1Time) ms
     \(part1)
-
-    Part 2 calculated in \(part2Time) ms
-    ---------------------------------
+    --------------------------------------
+    Part 2 took \(part2Time) ms
     \(part2)
-
+    --------------------------------------
     """
     |> Stdout.line
 

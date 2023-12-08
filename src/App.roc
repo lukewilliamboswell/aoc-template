@@ -7,7 +7,6 @@ interface App
         AoC,
         S2022.D01,
         S2022.D02,
-        S2022.D03,
         S2023.D01,
     ]
 
@@ -17,7 +16,6 @@ solutions =
     [
         S2022.D01.solution,
         S2023.D01.solution,
-        S2022.D03.solution,
         S2022.D02.solution,
     ]
     |> List.sortWith sortByYearAndDay
@@ -28,8 +26,8 @@ solvePuzzle = \selection ->
     result = solutions |> List.keepOks (AoC.filterByYearDay selection.year selection.day) |> List.first
 
     when (selection.puzzle, result) is
-        (Part1, Ok solution) -> solution.part1 {}
-        (Part2, Ok solution) -> solution.part2 {}
+        (Part1, Ok solution) -> solution.part1 solution.puzzleInput
+        (Part2, Ok solution) -> solution.part2 solution.puzzleInput
         (_, Err ListWasEmpty) -> Err NotImplemented
 
 sortByYearAndDay : AoC.Solution, AoC.Solution -> [LT, EQ, GT]
