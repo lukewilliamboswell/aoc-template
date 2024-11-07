@@ -1,4 +1,5 @@
-src/cli
-src/web
-src/tui
-day1
+examples/2020/01
+
+.DS_Store
+
+generated-docs/
