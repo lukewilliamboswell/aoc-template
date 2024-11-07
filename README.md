@@ -1,84 +1,64 @@
-# Advent of Code Template 
+# Advent of Code Template
 
-A template for AoC using [Roc](https://www.roc-lang.org) 🤘
+A package to help solve AoC puzzles using [Roc](https://www.roc-lang.org) 🤘
 
-Roc is a [fast](https://www.roc-lang.org/fast), [friendly](https://www.roc-lang.org/friendly), and [functional](https://www.roc-lang.org/functional) language which makes it ideal for AoC.  
+Roc is a [fast](https://www.roc-lang.org/fast), [friendly](https://www.roc-lang.org/friendly), and [functional](https://www.roc-lang.org/functional) language which makes it ideal for AoC.
 
-All you need to get started is the `roc` executable. [Installing it](https://www.roc-lang.org/install) doesn't take long, and it ships with testing (`roc test`) and code formatting (`roc format`) already included.
+To get started, make sure you have [installed roc](https://www.roc-lang.org/install), and then you can use this package to help solve the puzzles.
 
-The simplest setup is to make each day its own `.roc` file. 
+```sh
+$ roc examples/2020/01.roc < examples/input/2020_01.txt
+--- ADVENT OF CODE 2020-1: Report Repair ---
 
-For example, here's all you need for `day1`.
+INPUT:
+Reading input from STDIN...
 
-## day1.roc
+PART 1:
+1939 * 81 = 157059
 
-```elm
-app "AoC"
-    packages {
-        pf: "https://github.com/roc-lang/basic-cli/releases/download/0.7.0/bkGby8jb0tmZYsy2hg1E_B2QrCgcSTxdUlHtETwm5m4.tar.br",
+PART 2 ERROR:
+"expected at least one triple to have sum of 2020"
+
+TIMING:
+READING INPUT:  <1ms
+SOLVING PART 1: <1ms
+SOLVING PART 2: 14ms
+---
+```
+
+This package assumes you have a [roc-lang/basic-cli](https://github.com/roc-lang/basic-cli) app (although that is not strictly necessary).
+
+A starter solution might look like;
+
+```roc
+app [main] {
+    pf: platform "https://github.com/roc-lang/basic-cli/releases/download/0.15.0/SlwdbJ-3GR7uBWQo6zlmYWNYOxnvo8r6YABXD-45UOw.tar.br",
+    aoc: "https://github.com/lukewilliamboswell/aoc/releases/download/0.1.0/FAc1uq7Plf6g7-of0d1Hztus0gbtw4FNclAFbkQB-7U.tar.br",
+}
+
+import pf.Stdin
+import pf.Stdout
+import pf.Utc
+import aoc.AoC {
+    stdin: Stdin.bytes,
+    stdout: Stdout.write,
+    time: \{} -> Utc.now {} |> Task.map Utc.toMillisSinceEpoch,
+}
+
+main =
+    AoC.solve {
+        year: 2020,
+        day: 1,
+        title: "Report Repair",
+        part1,
+        part2,
     }
-    imports [pf.Stdout, pf.Task.{Task}, "day-1-input.txt" as input : Str]
-    provides [main] to pf
 
-main : Task {} *
-main = Stdout.line part1
+## Implement your part1 and part1 solutions here
+## e.g.
+part1 : Str -> Result Str [TODO]
+part1 = \_ -> TODO
 
-part1 : Str
-part1 =
-    elfCalories
-    |> List.map List.sum
-    |> List.sortDesc
-    |> List.first
-    |> Result.map \highestCals -> "The Elf with the highest calories has \(Num.toStr highestCals) kCal"
-    |> Result.withDefault "Ooops there are no rucksacks to count"
-
-elfCalories : List (List U64)
-elfCalories = parse input
-
-parse : Str -> List (List U64)
-parse = \str ->
-    inventory <- str |> Str.split "\n\n" |> List.map
-
-    inventory |> Str.split "\n" |> List.keepOks Str.toU64
-```
-
-You can run your solution from the terminal in the same directory as `day1.roc` with:
-
-```sh
-$ roc dev day1.roc
-```
-
-If you want to do an optimized build, run `roc run --optimize day1.roc` instead. This will take longer to build, but then the program will run faster.
-
-To run tests, use:
-
-```sh
-$ roc test day1.roc 
-
-0 failed and 1 passed in 277 ms.
-```
-
-This is all you need to solve AoC in Roc! 🎉 
-
-## Optional: AoC CLI, TUI and Web Apps
-
-If you'd like additional features that are specific to AoC, then this repository has several to choose from:
-- A CLI App that prints the results to stdout `roc run src/cli.roc -- 2022 1`
-- A TUI App with a graphical menu to choose a solution to run `roc src/tui.roc`
-- A Web App for sharing your AoC solutions with your friends `roc src/web.roc`
-
-The solutions for CLI, TUI and Web are common to all three applications. They are located in subfolders like `src/S2023/D01.roc`. 
-
-To add another you can copy a previous solution, and include it in the `solutions` variable in `src/App.roc`.
-
-```elm
-solutions : List AoC.Solution
-solutions = 
-    [
-        S2022.D01.solution,
-        S2022.D02.solution,
-        S2022.D03.solution,
-        S2023.D01.solution,
-    ]
-    |> List.sortWith sortByYearAndDay
+part2 : Str -> Result Str [TODO]
+part2 = \_ -> TODO
 ```
