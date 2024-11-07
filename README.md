@@ -33,7 +33,7 @@ A starter solution might look like;
 ```roc
 app [main] {
     pf: platform "https://github.com/roc-lang/basic-cli/releases/download/0.15.0/SlwdbJ-3GR7uBWQo6zlmYWNYOxnvo8r6YABXD-45UOw.tar.br",
-    aoc: "https://github.com/lukewilliamboswell/aoc/releases/download/0.1.0/FAc1uq7Plf6g7-of0d1Hztus0gbtw4FNclAFbkQB-7U.tar.br",
+    aoc: "https://github.com/lukewilliamboswell/aoc-template/releases/download/0.1.0/DcTQw_U67F22cX7pgx93AcHz_ShvHRaFIFjcijF3nz0.tar.br",
 }
 
 import pf.Stdin
