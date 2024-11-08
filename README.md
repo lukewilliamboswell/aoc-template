@@ -10,7 +10,7 @@ You can find my solutions to previous years at [lukewilliamboswell/aoc](https://
 
 To get started, make sure you have [installed roc](https://www.roc-lang.org/install).
 
-This package provides a helper function `Aoc.solve!` that reads the problem input from STDIN, and runs your provided solutions for part 1 and part 2, and then prints the results with some helpful timing information.
+This package provides a helper function `AoC.solve` that reads the problem input from STDIN, and runs your provided solutions for part 1 and part 2, and then prints the results with some helpful timing information.
 
 ```sh
 $ roc 2020/01.roc < input/2020_01.txt
