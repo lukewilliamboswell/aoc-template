@@ -29,11 +29,10 @@ solve = \{ year, day, title, part1, part2 } ->
     input : Str
     input =
         stdin {}
-            |> Task.map Str.fromUtf8
-            |> Task.map! \maybeStr ->
-                when maybeStr is
-                    Ok str -> str
-                    Err _ -> crash "Failed to read input -- expected UTF-8"
+        |> Task.await! \bytes ->
+            Str.fromUtf8 bytes
+            |> Result.mapErr \_ -> InvalidUtf8Input
+            |> Task.fromResult
 
     endRead = time! {}
 
@@ -104,6 +103,7 @@ solve = \{ year, day, title, part1, part2 } ->
                 ]
                 ""
         )
+
 
 blue = \str -> "\u(001b)[0;34m$(str)\u(001b)[0m"
 green = \str -> "\u(001b)[0;32m$(str)\u(001b)[0m"
