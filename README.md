@@ -32,14 +32,12 @@ SOLVING PART 2: 209ms
 ---
 ```
 
-This package assumes you have a [roc-lang/basic-cli](https://github.com/roc-lang/basic-cli) app (although that is not strictly necessary).
-
-A starter solution might look like this:
+A starter solution:
 
 ```roc
 app [main] {
-    pf: platform "https://github.com/roc-lang/basic-cli/releases/download/0.16.0/O00IPk-Krg_diNS2dVWlI0ZQP794Vctxzv0ha96mK0E.tar.br",
-    aoc: "https://github.com/lukewilliamboswell/aoc-template/releases/download/0.1.0/DcTQw_U67F22cX7pgx93AcHz_ShvHRaFIFjcijF3nz0.tar.br",
+    pf: platform "https://github.com/roc-lang/basic-cli/releases/download/0.17.0/lZFLstMUCUvd5bjnnpYromZJXkQUrdhbva4xdBInicE.tar.br",
+    aoc: "https://github.com/lukewilliamboswell/aoc-template/releases/download/0.2.0/tlS1ZkwSKSB87_3poSOXcwHyySe0WxWOWQbPmp7rxBw.tar.br",
 }
 
 import pf.Stdin
@@ -60,10 +58,42 @@ main =
         part2,
     }
 
-## Implement your part1 and part1 solutions here
+## Implement your part1 and part2 solutions here
 part1 : Str -> Result Str _
 part1 = \_ -> Err TODO
 
 part2 : Str -> Result Str _
 part2 = \_ -> Err TODO
+```
+
+Example implementation:
+```
+part1 : Str -> Result Str Str
+part1 = \input ->
+    numbers = parseNumbers input
+
+    combined =
+        List.joinMap numbers \x ->
+            List.map numbers \y ->
+                { x, y, sum: x + y, mul: x * y }
+
+    when List.keepIf combined \c -> c.sum == 2020 is
+        [first, ..] -> Ok "$(Num.toStr first.x) * $(Num.toStr first.y) = $(Num.toStr first.mul)"
+        _ -> Err "expected at least one pair to have sum of 2020"
+
+part2 : Str -> Result Str Str
+part2 = \input ->
+    numbers = parseNumbers input
+
+    combined =
+        List.joinMap numbers \x ->
+            List.joinMap numbers \y ->
+                List.map numbers \z ->
+                    { x, y, z, sum: x + y + z, mul: x * y * z }
+
+    when List.keepIf combined \c -> c.sum == 2020 is
+        [first, ..] -> Ok "$(Num.toStr first.x) * $(Num.toStr first.y) * $(Num.toStr first.z) = $(Num.toStr first.mul)"
+        _ -> Err "expected at least one triple to have sum of 2020"
+
+parseNumbers = \input -> input |> Str.splitOn "\n" |> List.keepOks Str.toU64
 ```
