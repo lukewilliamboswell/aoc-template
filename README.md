@@ -67,7 +67,7 @@ part2 = \_ -> Err TODO
 ```
 
 Example implementation:
-```
+```roc
 part1 : Str -> Result Str Str
 part1 = \input ->
     numbers = parseNumbers input
