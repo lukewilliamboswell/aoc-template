@@ -1,5 +1,5 @@
 app [main] {
-    pf: platform "https://github.com/roc-lang/basic-cli/releases/download/0.15.0/SlwdbJ-3GR7uBWQo6zlmYWNYOxnvo8r6YABXD-45UOw.tar.br",
+    pf: platform "https://github.com/roc-lang/basic-cli/releases/download/0.17.0/lZFLstMUCUvd5bjnnpYromZJXkQUrdhbva4xdBInicE.tar.br",
     aoc: "../../package/main.roc",
 }
 
@@ -48,7 +48,7 @@ part2 = \input ->
         [first, ..] -> Ok "$(Num.toStr first.x) * $(Num.toStr first.y) * $(Num.toStr first.z) = $(Num.toStr first.mul)"
         _ -> Err "expected at least one triple to have sum of 2020"
 
-parseNumbers = \input -> input |> Str.split "\n" |> List.keepOks Str.toU64
+parseNumbers = \input -> input |> Str.splitOn "\n" |> List.keepOks Str.toU64
 
 expect
     result = part1 example
