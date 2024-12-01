@@ -1,5 +1,5 @@
-app [main] {
-    pf: platform "https://github.com/roc-lang/basic-cli/releases/download/0.17.0/lZFLstMUCUvd5bjnnpYromZJXkQUrdhbva4xdBInicE.tar.br",
+app [main!] {
+    pf: platform "../../../basic-cli/platform/main.roc",
     aoc: "../../package/main.roc",
 }
 
@@ -7,13 +7,13 @@ import pf.Stdin
 import pf.Stdout
 import pf.Utc
 import aoc.AoC {
-    stdin: Stdin.bytes,
-    stdout: Stdout.write,
-    time: \{} -> Utc.now {} |> Task.map Utc.toMillisSinceEpoch,
+    stdin!: Stdin.bytes!,
+    stdout!: Stdout.write!,
+    time!: \{} -> Utc.now! {} |> Utc.toMillisSinceEpoch,
 }
 
-main =
-    AoC.solve {
+main! = \{} ->
+    AoC.solve! {
         year: 2020,
         day: 1,
         title: "Report Repair",
