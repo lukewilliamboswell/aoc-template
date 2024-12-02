@@ -7,7 +7,7 @@ import pf.Stdin
 import pf.Stdout
 import pf.Utc
 import aoc.AoC {
-    stdin: Stdin.bytes,
+    stdin: Stdin.readToEnd,
     stdout: Stdout.write,
     time: \{} -> Utc.now {} |> Task.map Utc.toMillisSinceEpoch,
 }
