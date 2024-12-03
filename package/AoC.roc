@@ -4,8 +4,8 @@ Solution err : {
     year : U64,
     day : U64,
     title : Str,
-    part1 : Str -> Result Str err,
-    part2 : Str -> Result Str err,
+    part1 : Str -> Result Str [SomeErr]err,
+    part2 : Str -> Result Str [SomeErr]err,
 } where err implements Inspect
 
 solve : Solution err -> Task {} _
